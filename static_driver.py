@@ -114,18 +114,19 @@ def check_for_error( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0 ):
         exit()
 
     #Check that impurities defined using unique indices
-    chk = impindx[0]
-    for count, arr in enumerate(impindx):
-        if( count != 0 ):
-            chk = np.concatenate((chk,arr))
+    #PING: need to fix this b/c an error w/the np.unique command
+    #chk = impindx[0]
+    #for count, arr in enumerate(impindx):
+    #    if( count != 0 ):
+    #        chk = np.concatenate((chk,arr))
 
-    unqchk, cnt = np.unique(chk, return_counts=True)
+    #unqchk, cnt = np.unique(chk, return_counts=True)
 
-    if( len(chk) != len(unqchk) ):
-        print 'ERROR: The following indices were repeated in the definition of the impurities:'
-        print unqchk[cnt>1]
-        print
-        exit()       
+    #if( len(chk) != len(unqchk) ):
+    #    print 'ERROR: The following indices were repeated in the definition of the impurities:'
+    #    print unqchk[cnt>1]
+    #    print
+    #    exit()       
 
     #Check that for each fragment, impurities are assigned in ascending order (does not have to be sequential)
     for count, arr in enumerate(impindx):
