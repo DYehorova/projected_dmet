@@ -5,6 +5,7 @@ import fci_mod
 import sys
 import os
 import utils
+import applyham_pyscf
 
 ######## FRAGMENT CLASS #######
 
@@ -158,6 +159,14 @@ class fragment():
                         self.Efrag += 0.5 * self.V_emb[ orb1, orb2, orb3, orb4 ] * self.corr2RDM[ orb1, orb2, orb3, orb4 ]
 
     #####################################################################
+
+    def get_ddt_corr1RDM( self ):
+        #Subroutine to calculate first time-derivative of correlated 1RDM
+        #Only calculated in the necessary impurity-bath space
+
+
+    #####################################################################
+
 
 
 
