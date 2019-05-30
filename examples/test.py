@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import os
-sys.path.append('/Users/Joshua/Documents/Chan_group/projected_dmet')
+sys.path.append('/home/jkretchm/projected_dmet')
 import static_driver
 import pyscf.fci
 import utils
@@ -9,7 +9,7 @@ import make_hams
 
 N     = 10
 Nele  = N
-Nfrag = 4
+Nfrag = 5
 
 mubool  = True
 hamtype = 0
@@ -31,12 +31,12 @@ hamtype = 0
 #impindx = [ np.array([0,1,2,3]), np.array([4,5,6,7]) ]
 
 #N=10 tilings
-#impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]), np.array([6,7]), np.array([8,9]) ]
+impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]), np.array([6,7]), np.array([8,9]) ]
 #impindx = [ np.array([0,1,2,3,4]), np.array([5,6,7,8,9]) ]
 #impindx = [ np.array([7,8,9,3,4]), np.array([0,1,2,5,6])]
-impindx  = [ np.array([0,1]), np.array([2,3,7]), np.array([4,5,9]), np.array([6,8]) ]
+#impindx  = [ np.array([0,1]), np.array([2,3,7]), np.array([4,5,9]), np.array([6,8]) ]
 
-U = 0.0 
+U = 0.1 
 h_site, V_site = make_hams.make_1D_hubbard( N, U, 1.0, True )
 
 #V_site = U * np.ones([N,N,N,N])

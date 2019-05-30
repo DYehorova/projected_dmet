@@ -164,7 +164,6 @@ class fragment():
         #Subroutine to calculate first time-derivative of correlated 1RDM
         #Only calculated in the necessary impurity-bath space
 
-        return 3
 
     #####################################################################
 

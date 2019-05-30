@@ -45,24 +45,6 @@ def apply_ham_pyscf_check( CIcoeffs, hmat, Vmat, nalpha, nbeta, norbs, Econst, f
 
 #####################################################################
 
-def apply_ham_pyscf_fully_complex( CIcoeffs, hmat, Vmat, nalpha, nbeta, norbs, Econst, fctr=0.5 ):
-
-    #subroutine that uses the apply_ham_pyscf_nosym subroutine below to apply a complex hamiltonian
-    #to a complex set of CI coefficients - also works if some subset are real, it's just slower
-
-    print '-----------'
-    print apply_ham_pyscf_nosym( numpy.copy(CIcoeffs.real), numpy.copy(hmat.imag), numpy.copy(Vmat.imag), nalpha, nbeta, norbs, Econst, 0.0  )
-    print '-----------'
-
-    CIcoeffs =          apply_ham_pyscf_nosym( numpy.copy(CIcoeffs.real), numpy.copy(hmat.real), numpy.copy(Vmat.real), nalpha, nbeta, norbs, Econst, fctr ) \
-                      - apply_ham_pyscf_nosym( numpy.copy(CIcoeffs.imag), numpy.copy(hmat.imag), numpy.copy(Vmat.imag), nalpha, nbeta, norbs, Econst, 0.0  ) \
-               +1j * (  apply_ham_pyscf_nosym( numpy.copy(CIcoeffs.imag), numpy.copy(hmat.real), numpy.copy(Vmat.real), nalpha, nbeta, norbs, Econst, fctr ) \
-                      + apply_ham_pyscf_nosym( numpy.copy(CIcoeffs.real), numpy.copy(hmat.imag), numpy.copy(Vmat.imag), nalpha, nbeta, norbs, Econst, 0.0  ) )
-
-    return CIcoeffs
-
-#####################################################################
-
 def apply_ham_pyscf_real( CIcoeffs, hmat, Vmat, nalpha, nbeta, norbs, Econst, fctr=0.5 ):
     #NOTE: THIS SUBROUTINE ASSUMES THAT THE HAMILTONIAN IS SYMMETRIC (HERMITIAN AND REAL)
     #AND IS CALLING PYSCF TO APPLY THE HAMILTONIAN

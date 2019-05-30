@@ -61,7 +61,7 @@ class static_driver():
         print '********************************************'
         print
 
-        ####DMET outer-loop####
+        #DMET outer-loop
         convg = False
         for itr in range(self.Maxitr):
 
@@ -85,25 +85,18 @@ class static_driver():
             self.tot_system.get_new_mf1RDM( self.tot_system.Nele/2 )
 
             #Check if difference between previous and current 1RDM is less than tolerance
+            #PING need to fix
             if( itr > 0 ):
-                dif = np.linalg.norm( old_glob1RDM - self.tot_system.glob1RDM )
-                if( dif < self.tol ):
-                    convg = True
-                    break
+                dif = np.lstsq( old_glob1RDM - self.tot_system.glob1RDM )
+                if( dif < self.tol ): break
 
             #Copy over old global 1RDM
             old_glob1RDM = np.copy( self.tot_system.glob1RDM )
 
-            if( np.mod( itr, self.Maxitr/10 ) == 0 and itr > 0 ):
-                print 'Finished DMET Iteration',itr
-                print 'Current difference in global 1RDM =',dif
-                print
-
-        ####END DMET outer-loop####
+            break #PING
 
         if( convg ):
-            print 'DMET calculation succesfully converged in',itr,'iterations'
-            print 'Final difference in global 1RDM =',dif
+            print 'DMET calculation succesfully converged'
             print
         else:
             print 'WARNING: DMET calculation finished, but did not converge in', self.Maxitr, 'iterations'
