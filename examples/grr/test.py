@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import os
-sys.path.append('/home/jkretchm/projected_dmet')
+sys.path.append('/Users/Joshua/Documents/Chan_group/projected_dmet/')
 import static_driver
 import pyscf.fci
 import utils
@@ -16,7 +16,7 @@ mubool  = True
 h_site = np.zeros([N,N],dtype=complex)
 V_site = np.zeros([N,N,N,N],dtype=complex)
 
-U = 0.3j 
+U = 2.0+0.3j 
 
 a = -0.5
 b = 0.1+0.2j
@@ -56,10 +56,10 @@ Ham[3,3] = 2*d+U
 
 
 CIcoeffs = np.zeros([2,2],dtype=complex)
-CIcoeffs[0,0] = 1.0
-CIcoeffs[1,0] = 0.0
-CIcoeffs[0,1] = 0.0
-CIcoeffs[1,1] = 0.0
+CIcoeffs[0,0] = 0.8 + 0.1j
+CIcoeffs[1,0] = -0.7 + 0.3j
+CIcoeffs[0,1] = 0.1 - 0.5j
+CIcoeffs[1,1] = 0.3 - 0.2j
 
 CIvec = np.zeros(4,dtype=complex)
 CIvec[0] = CIcoeffs[0,0]
