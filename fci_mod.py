@@ -5,6 +5,7 @@ import sys
 import os
 import utils
 import pyscf.fci
+import applyham_pyscf
 
 #####################################################################
 
@@ -86,5 +87,55 @@ def get_corr12RDM( CIcoeffs, Norbs, Nele ):
 
 #####################################################################
 
+def get_trans1RDM( CIcoeffs_1, CIcoeffs_2, Norbs, Nele ):
+
+    #Subroutine to get the transition 1RDM between two CI vectors
+    #notation is rho_pq = < psi_1 | c_q^dag c_p | psi_2 >
+
+    if( np.iscomplexobj(CIcoeffs_1) or np.iscomplexobj(CIcoeffs_2) ):
+
+        Re_CIcoeffs_1 = np.copy( CIcoeffs_1.real )
+        Im_CIcoeffs_1 = np.copy( CIcoeffs_1.imag )
+
+        Re_CIcoeffs_2 = np.copy( CIcoeffs_2.real )
+        Im_CIcoeffs_2 = np.copy( CIcoeffs_2.imag )
+
+        corr1RDM  = 1j * pyscf.fci.direct_spin1.trans_rdm1( Re_CIcoeffs_1, Im_CIcoeffs_2, Norbs, Nele )
+
+        corr1RDM -= 1j * pyscf.fci.direct_spin1.trans_rdm1( Im_CIcoeffs_1, Re_CIcoeffs_2, Norbs, Nele )
+
+        corr1RDM += pyscf.fci.direct_spin1.trans_rdm1( Re_CIcoeffs_1, Re_CIcoeffs_2, Norbs, Nele )
+
+        corr1RDM += pyscf.fci.direct_spin1.trans_rdm1( Im_CIcoeffs_1, Im_CIcoeffs_2, Norbs, Nele )
+
+    else:
+
+        corr1RDM  = pyscf.fci.direct_spin1.trans_rdm1( CIcoeffs_1, CIcoeffs_2, Norbs, Nele )
+
+    return corr1RDM
+
+#####################################################################
+
+def get_FCI_E( h, V, Econst, CIcoeffs, Norbs, Nalpha, Nbeta ):
+
+    #Subroutine to calculate the FCI electronic energy for given Hamiltonian and FCI vector
+    #Works with complex Hamitlonian and FCI vector
+
+    Hpsi = applyham_pyscf.apply_ham_pyscf_fully_complex( CIcoeffs, h, V, Nalpha, Nbeta, Norbs, Econst )
+
+    Re_Hpsi = np.copy( Hpsi.real )
+    Im_Hpsi = np.copy( Hpsi.imag )
+
+    Re_CIcoeffs = np.copy( CIcoeffs.real )
+    Im_CIcoeffs = np.copy( CIcoeffs.imag )
+
+    FCI_E =  pyscf.fci.addons.overlap( Re_CIcoeffs, Re_Hpsi, Norbs, (Nalpha,Nbeta) )
+    FCI_E += pyscf.fci.addons.overlap( Im_CIcoeffs, Im_Hpsi, Norbs, (Nalpha,Nbeta) )
+    FCI_E += 1j * pyscf.fci.addons.overlap( Re_CIcoeffs, Im_Hpsi, Norbs, (Nalpha,Nbeta) )
+    FCI_E -= 1j * pyscf.fci.addons.overlap( Im_CIcoeffs, Re_Hpsi, Norbs, (Nalpha,Nbeta) )
+
+    return FCI_E.real
+
+#####################################################################
 
 

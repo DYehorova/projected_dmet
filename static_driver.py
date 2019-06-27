@@ -107,10 +107,13 @@ class static_driver():
             print
         else:
             print 'WARNING: DMET calculation finished, but did not converge in', self.Maxitr, 'iterations'
+            print 'Final difference in global 1RDM =',dif
             print
 
+        ##### Calculate final DMET energy ####
         self.tot_system.get_DMET_E()
-        print self.tot_system.DMET_E
+        print 'Final DMET energy =',self.tot_system.DMET_E
+        print
 
 #####################################################################
 
