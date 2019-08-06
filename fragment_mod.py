@@ -147,6 +147,7 @@ class fragment():
 
     def get_frag_E( self ):
         #Subroutine to calculate contribution to DMET energy from fragment
+        #Need to calculate embedding hamiltonian and 1/2 rdms prior to calling this routine
         #Using democratic partitioning using Eq. 28 from  Wouters JCTC 2016
         #This equation uses 1 e- part that only includes half the interaction with the core
         #Notation for 1RDM is rho_pq = < c_q^dag c_p >
@@ -154,15 +155,11 @@ class fragment():
         #Notation for 1 body terms h1[p,q] = <p|h|q>
         #Notation for 2 body terms V[p,q,r,s] = (pq|rs)
 
-        #Obtain 1 and 2 RDMs in embedding space
-        self.get_corr12RDM()
-
         #Calculate fragment energy using democratic partitioning
         self.Efrag = 0.0
         for orb1 in range(self.Nimp):
             for orb2 in range(2*self.Nimp):
                 self.Efrag += self.h_emb_halfcore[ orb1, orb2 ] * self.corr1RDM[ orb2, orb1 ]
-                #self.Efrag += self.h_emb[ orb1, orb2 ] * self.corr1RDM[ orb2, orb1 ]
                 for orb3 in range(2*self.Nimp):
                     for orb4 in range(2*self.Nimp):
                         self.Efrag += 0.5 * self.V_emb[ orb1, orb2, orb3, orb4 ] * self.corr2RDM[ orb1, orb2, orb3, orb4 ]

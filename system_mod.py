@@ -105,6 +105,13 @@ class system():
 
     #####################################################################
 
+    def get_frag_corr12RDM( self ):
+        #Subroutine to calculate correlated 1RDM for each fragment
+        for frag in self.frag_list:
+            frag.get_corr12RDM()
+
+    #####################################################################
+
     def get_frag_Hemb( self ):
         #Subroutine to calculate embedding Hamiltonian for each fragment
         for frag in self.frag_list:
@@ -114,6 +121,7 @@ class system():
 
     def get_DMET_Nele( self ):
         #Subroutine to calculate the number of electrons summed over all impurities
+        #Necessary to calculate fragment 1RDMs prior to this routine
         self.DMET_Nele = 0.0
         for frag in self.frag_list:
             self.DMET_Nele += np.real( np.trace( frag.corr1RDM[:frag.Nimp,:frag.Nimp] ) )
@@ -122,6 +130,10 @@ class system():
 
     def get_DMET_E( self ):
         #Subroutine to calculate the DMET energy
+
+        self.get_frag_Hemb()
+        self.get_frag_corr12RDM()
+
         self.DMET_E = 0.0
         for frag in self.frag_list:
             frag.get_frag_E()

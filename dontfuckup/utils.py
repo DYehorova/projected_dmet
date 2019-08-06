@@ -106,6 +106,13 @@ def matprod( Mat1, *args ):
 
 #####################################################################
 
+def adjoint( Mat ):
+    #subroutine to calculate the conjugate transpose (ie adjoint) of a matrix
+
+    return np.conjugate( np.transpose( Mat ) )
+
+#####################################################################
+
 def chemps2_to_pyscf_CIcoeffs( CIcoeffs_chemps2, Norbs, Nalpha, Nbeta ):
     #subroutine to unpack the 1d vector of CI coefficients obtained from a FCI calculation using CheMPS2
     #to the correctly formatted 2d-array of CI coefficients for use with pyscf

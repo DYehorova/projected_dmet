@@ -7,6 +7,8 @@ import os
 import utils
 import applyham_pyscf
 
+import pyscf.fci #mrar
+
 ######## FRAGMENT CLASS #######
 
 class fragment():
@@ -21,6 +23,12 @@ class fragment():
 
         self.Ncore = Nele/2 - self.Nimp #Number of core orbitals in fragment
         self.Nvirt = Nsites - 2*self.Nimp - self.Ncore #Number of virtual orbitals in fragment
+
+        #range of orbitals in embedding basis, embedding basis always indexed as impurity, virtual, bath, core
+        self.imprange  = range(0, self.Nimp)
+        self.virtrange = range(self.Nimp, self.Nimp+self.Nvirt)
+        self.bathrange = range(self.Nimp+self.Nvirt, 2*self.Nimp+self.Nvirt)
+        self.corerange = range(2*self.Nimp+self.Nvirt, self.Nsites)
 
     #####################################################################
 
@@ -44,6 +52,7 @@ class fragment():
             evecs                    = np.insert( evecs, indx, 0.0, axis=0 )
 
         self.rotmat = np.concatenate( (self.rotmat,evecs), axis=1 )
+        self.env1RDM_evals = evals
 
     #####################################################################
         
@@ -138,6 +147,7 @@ class fragment():
 
     def get_frag_E( self ):
         #Subroutine to calculate contribution to DMET energy from fragment
+        #Need to calculate embedding hamiltonian and 1/2 rdms prior to calling this routine
         #Using democratic partitioning using Eq. 28 from  Wouters JCTC 2016
         #This equation uses 1 e- part that only includes half the interaction with the core
         #Notation for 1RDM is rho_pq = < c_q^dag c_p >
@@ -145,15 +155,11 @@ class fragment():
         #Notation for 1 body terms h1[p,q] = <p|h|q>
         #Notation for 2 body terms V[p,q,r,s] = (pq|rs)
 
-        #Obtain 1 and 2 RDMs in embedding space
-        self.get_corr12RDM()
-
         #Calculate fragment energy using democratic partitioning
         self.Efrag = 0.0
         for orb1 in range(self.Nimp):
             for orb2 in range(2*self.Nimp):
                 self.Efrag += self.h_emb_halfcore[ orb1, orb2 ] * self.corr1RDM[ orb2, orb1 ]
-                #self.Efrag += self.h_emb[ orb1, orb2 ] * self.corr1RDM[ orb2, orb1 ]
                 for orb3 in range(2*self.Nimp):
                     for orb4 in range(2*self.Nimp):
                         self.Efrag += 0.5 * self.V_emb[ orb1, orb2, orb3, orb4 ] * self.corr2RDM[ orb1, orb2, orb3, orb4 ]
@@ -164,9 +170,25 @@ class fragment():
         #Subroutine to calculate first time-derivative of correlated 1RDM
         #Only calculated in the necessary impurity-bath space
 
+        Ctil = applyham_pyscf.apply_ham_pyscf_fully_complex( self.CIcoeffs, self.h_emb, self.V_emb, self.Nimp, self.Nimp, 2*self.Nimp, self.Ecore )
+
+        rdmtil = fci_mod.get_trans1RDM( self.CIcoeffs, Ctil, 2*self.Nimp, 2*self.Nimp )
+
+        self.ddt_corr1RDM = -1j*( rdmtil - utils.adjoint( rdmtil ) )
 
     #####################################################################
 
+    def contract_natorb_rotmat( self, NOevecs ):
+        #Subroutine to contract the rotation matrix of the given fragment with
+        #the natural orbitals of the total system global 1RDM
 
+        self.NO_rot = utils.matprod( utils.adjoint( NOevecs), self.rotmat )
 
+    #####################################################################
 
+    def init_Xmat( self ):
+        #Subroutine to initialize the X-matrix to zero
+
+        self.Xmat = np.zeros( [self.Nsites, self.Nsites], dtype=complex )
+
+    #####################################################################
