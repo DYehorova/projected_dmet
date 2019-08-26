@@ -6,6 +6,8 @@ import sys
 import os
 import utils
 
+import time
+
 ######## TOTAL SYSTEM CLASS #######
 
 class system():
@@ -204,39 +206,18 @@ class system():
 
         #Form matrix given by one over the difference in the global 1RDM natural orbital evals (ie just the evals of the global 1RDM)
         chi = np.zeros( [self.Nsites,self.Nsites] )
-        for i in range(self.Nsites):
-            for j in range(self.Nsites):
-                if( i != j ):
-                    chi[i,j] = 1.0/(self.NOevals[i]-self.NOevals[j])
+        for i in range(Nocc):
+            for j in range(Nocc,self.Nsites):
+                chi[i,j] = 1.0/(self.NOevals[i]-self.NOevals[j])
+                chi[j,i] = 1.0/(self.NOevals[j]-self.NOevals[i])
 
-
-        #Form omega super-matrix indexed by fragment-embedding orbital-embedding orbital, site orbital-embedding orbital
-        #Note that number of site orbitals and embedding orbitals is the same - the size of the system
-        omega  = np.zeros( [self.Nfrag*self.Nsites**2, self.Nsites**2], dtype=complex )
-        for ifragA in range(self.Nfrag):
-            for emb1 in range(self.Nsites):
-                for emb2 in range(self.Nsites):
-
-                    #Left-index for super-matrix
-                    Lidx = emb2+emb1*self.Nsites+ifragA*self.Nsites**2
-
-                    for site1 in range(self.Nsites):
-                        for emb3 in range(self.Nsites):
-
-                            #Right Index for super matrix
-                            Ridx = emb3+site1*self.Nsites
-
-                            #calculate omega super-matrix - einsum summing over natural orbitals
-                            omega[Lidx,Ridx] = np.einsum( 'j,j,ij,i,i', np.conjugate(self.frag_list[ifragA].NO_rot[:,emb1]), self.frag_list[self.site_to_frag_list[site1]].NO_rot[:,emb3], \
-                                                          chi[:Nocc,:], self.NOevecs[site1,:Nocc], self.frag_list[ifragA].NO_rot[:Nocc,emb2] ) + \
-                                               np.einsum( 'i,i,ij,j,j', np.conjugate(self.frag_list[ifragA].NO_rot[:Nocc,emb1]), self.frag_list[self.site_to_frag_list[site1]].NO_rot[:Nocc,emb3], \
-                                                          chi[:Nocc,:], self.NOevecs[site1,:], self.frag_list[ifragA].NO_rot[:,emb2] )
-
-
-        #Form Y super-vector indexed by A, emb1, and emb2, where A runs over all fragments
+        #Calculate size of X-vec and the matrices needed to calculate it
+        #Given by A*emb1*emb2, where A runs over all fragments
         #emb1 runs over the core, bath, and virtual orbitals for each fragment A
         #and emb2 runs over all non-redundant terms given emb1
-        sizeY = 0
+        #also define a dictionary that takes the tuple (A,emb1,emb2) and outputs the index in the X-vec
+        sizeX = 0
+        indxdict = {}
         for ifragA, fragA in enumerate(self.frag_list):
             for emb1 in np.concatenate( ( fragA.virtrange, fragA.bathrange, fragA.corerange ) ):
 
@@ -248,11 +229,42 @@ class system():
                     emb2range = np.concatenate( (fragA.virtrange,fragA.bathrange) )
 
                 for emb2 in emb2range:
-                    sizeY += 1
+                    indxdict[ (ifragA, emb1, emb2) ] = sizeX
+                    sizeX += 1
 
-        Yvec = np.zeros( sizeY, dtype=complex )
+        #Form omega super-matrix indexed by same as X-vec, site orbital-embedding orbital
+        #Note that number of site orbitals and embedding orbitals is the same - the size of the system
+        omega = np.zeros( [sizeX, self.Nsites**2], dtype=complex )
+        Lidx  = 0 #Left-index for super-matrix
+        for ifragA, fragA in enumerate(self.frag_list):
+            for emb1 in np.concatenate( ( fragA.virtrange, fragA.bathrange, fragA.corerange ) ):
 
+                if emb1 in fragA.virtrange:
+                    emb2range = np.concatenate( (fragA.bathrange,fragA.corerange) )
+                elif emb1 in fragA.bathrange:
+                    emb2range = np.concatenate( (fragA.virtrange,fragA.corerange) )
+                elif emb1 in fragA.corerange:
+                    emb2range = np.concatenate( (fragA.virtrange,fragA.bathrange) )
+
+                for emb2 in emb2range:
+
+                    for site1 in range(self.Nsites):
+                        for emb3 in range(self.Nsites):
+
+                            #Right Index for super matrix
+                            Ridx = emb3+site1*self.Nsites
+
+                            #calculate omega super-matrix - einsum summing over natural orbitals
+                            omega[Lidx,Ridx] = np.einsum( 'j,j,ij,i,i', np.conjugate(fragA.NO_rot[Nocc:,emb1]), self.frag_list[self.site_to_frag_list[site1]].NO_rot[Nocc:,emb3], \
+                                                          chi[:Nocc,Nocc:], self.NOevecs[site1,:Nocc], fragA.NO_rot[:Nocc,emb2] ) + \
+                                               np.einsum( 'i,i,ij,j,j', np.conjugate(fragA.NO_rot[:Nocc,emb1]), self.frag_list[self.site_to_frag_list[site1]].NO_rot[:Nocc,emb3], \
+                                                          chi[:Nocc,Nocc:], self.NOevecs[site1,Nocc:], fragA.NO_rot[Nocc:,emb2] )
+
+                    Lidx += 1
+
+        #Form Y super-vector
         Yidx = 0
+        Yvec = np.zeros( sizeX, dtype=complex )
         for ifragA, fragA in enumerate(self.frag_list):
             for emb1 in np.concatenate( ( fragA.virtrange, fragA.bathrange, fragA.corerange ) ):
 
@@ -266,8 +278,8 @@ class system():
                 for emb2 in emb2range:
 
                     #Left-indices for omega matrix
-                    Lidx1 = emb2+emb1*self.Nsites+ifragA*self.Nsites**2
-                    Lidx2 = emb1+emb2*self.Nsites+ifragA*self.Nsites**2
+                    Lidx1 = indxdict[ (ifragA, emb1, emb2) ]
+                    Lidx2 = indxdict[ (ifragA, emb2, emb1) ]
 
                     #Eigenvalues associated with orbitals emb1 and emb2 of environment part of 1RDM for fragA
                     #Subtract off Nimp because indexing of embedding orbitals goes as imp,virt,bath,core
@@ -299,9 +311,7 @@ class system():
         #emb3 runs over the core, bath, and virtual orbitals for each fragment corresponding to the fragment where site1 is an impurity
         #and emb4 runs over all non-redundant terms given emb3
         #note that phi is a square matrix with a single index having the same dimensions as the Y super-vector above
-
-        phi = np.zeros( [sizeY,sizeY], dtype=complex )
-
+        phi = np.zeros( [sizeX,sizeX], dtype=complex )
         Lphiidx = 0
         for ifragA, fragA in enumerate(self.frag_list):
             for emb1 in np.concatenate( ( fragA.virtrange, fragA.bathrange, fragA.corerange ) ):
@@ -316,8 +326,8 @@ class system():
                 for emb2 in emb2range:
 
                     #Left-indices for omega matrix
-                    Lidx1 = emb2+emb1*self.Nsites+ifragA*self.Nsites**2
-                    Lidx2 = emb1+emb2*self.Nsites+ifragA*self.Nsites**2
+                    Lidx1 = indxdict[ (ifragA, emb1, emb2) ]
+                    Lidx2 = indxdict[ (ifragA, emb2, emb1) ]
 
                     #Eigenvalues associated with orbitals emb1 and emb2 of environment part of 1RDM for fragA
                     #Subtract off Nimp because indexing of embedding orbitals goes as imp,virt,bath,core
@@ -363,7 +373,7 @@ class system():
                     Lphiidx += 1
 
         #Solve inversion equation for X super vector
-        return np.linalg.solve( np.eye(sizeY)-phi, Yvec )
+        return np.linalg.solve( np.eye(sizeX)-phi, Yvec )
 
     #####################################################################
 

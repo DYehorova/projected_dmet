@@ -26,7 +26,7 @@ mubool  = False
 hamtype = 0
 
 delt   = 0.001
-Nstep  = 100
+Nstep  = 100000
 Nprint = 1
 integ  = 'rk4'
 

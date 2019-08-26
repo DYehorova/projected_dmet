@@ -15,7 +15,7 @@ tleads  = 1.0
 Full    = False
 
 delt   = 0.001
-Nstep  = 100
+Nstep  = 5000
 Nprint = 1
 
 #Initital Static Calculation
