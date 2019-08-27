@@ -21,7 +21,7 @@ class fragment():
         self.Nsites  = Nsites #total number of sites (or basis functions) in total system
         self.Nele    = Nele #total number of electrons in total system
 
-        self.Ncore = Nele/2 - self.Nimp #Number of core orbitals in fragment
+        self.Ncore = int(Nele/2) - self.Nimp #Number of core orbitals in fragment
         self.Nvirt = Nsites - 2*self.Nimp - self.Ncore #Number of virtual orbitals in fragment
 
         #range of orbitals in embedding basis, embedding basis always indexed as impurity, virtual, bath, core

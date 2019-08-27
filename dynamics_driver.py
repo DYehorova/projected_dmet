@@ -36,11 +36,11 @@ class dynamics_driver():
         self.init_time  = init_time
         self.integ      = integ
 
-        print
-        print '********************************************'
-        print '     SET-UP REAL-TIME DMET CALCULATION       '
-        print '********************************************'
-        print
+        print()
+        print('********************************************')
+        print('     SET-UP REAL-TIME DMET CALCULATION       ')
+        print('********************************************')
+        print()
 
         #Input error checks
 
@@ -56,18 +56,22 @@ class dynamics_driver():
         self.tot_system.V_site = V_site
 
         #Define output files
-        self.file_output   = file( 'output.dat', 'wa' )
-        self.file_corrdens = file( 'corr_density.dat', 'wa' )
+        #self.file_output   = file( 'output.dat', 'wa' )
+        #self.file_corrdens = file( 'corr_density.dat', 'wa' )
+
+        self.file_output   = open( 'output.dat', 'wb' )
+        self.file_corrdens = open( 'corr_density.dat', 'wb' )
+
 
     #####################################################################
 
     def kernel( self ):
 
-        print
-        print '********************************************'
-        print '     BEGIN REAL-TIME DMET CALCULATION       '
-        print '********************************************'
-        print
+        print()
+        print('********************************************')
+        print('     BEGIN REAL-TIME DMET CALCULATION       ')
+        print('********************************************')
+        print()
 
         #DYNAMICS LOOP
         current_time = self.init_time
@@ -75,7 +79,7 @@ class dynamics_driver():
 
             #Print data before taking time-step, this always prints out data at initial time step
             if( np.mod( step, self.Nprint ) == 0 ):
-                print 'Writing data at step ', step, 'and time', current_time, 'for RT-pDMET calculation'
+                print('Writing data at step ', step, 'and time', current_time, 'for RT-pDMET calculation')
                 self.print_data( current_time )
                 sys.stdout.flush()
 
@@ -87,16 +91,16 @@ class dynamics_driver():
 
 
         #Print data at final step regardless of Nprint
-        print 'Writing data at step ', step+1, 'and time', current_time, 'for RT-pDMET calculation'
+        print('Writing data at step ', step+1, 'and time', current_time, 'for RT-pDMET calculation')
         self.print_data( current_time )
         sys.stdout.flush()
 
 
-        print
-        print "++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-        print "END REAL-TIME DMET CALCULATION"
-        print "++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-        print
+        print()
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("END REAL-TIME DMET CALCULATION")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print()
 
     #####################################################################
 
@@ -188,8 +192,8 @@ class dynamics_driver():
                 frag.CIcoeffs = integrators.exact_timeindep_coeff_matrix( CIvec, H_fci, self.delt ).reshape((dim1,dim2), order='F')
 
         else:
-            print 'ERROR: A proper integrator was not specified'
-            print
+            print('ERROR: A proper integrator was not specified')
+            print()
             exit()
             
 
@@ -214,7 +218,7 @@ class dynamics_driver():
             frag.Ecore = 0.0
 
         #Calculate X-matrix
-        self.tot_system.get_Xmats( self.tot_system.Nele/2 )
+        self.tot_system.get_Xmats( int(self.tot_system.Nele/2) )
 
         #Calculate change in rotation matrices
         new_rotmat_list = []

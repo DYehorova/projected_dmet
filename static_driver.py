@@ -27,11 +27,11 @@ class static_driver():
         #hamtype - integer defining if using a special Hamiltonian like Hubbard or Anderson Impurity
         #Maxitr  - max number of DMET iterations
 
-        print
-        print '********************************************'
-        print '     INITIALIZING STATIC DMET CALCULATION       '
-        print '********************************************'
-        print
+        print()
+        print('********************************************')
+        print('     INITIALIZING STATIC DMET CALCULATION       ')
+        print('********************************************')
+        print()
 
         self.mubool = mubool
         self.Maxitr = Maxitr
@@ -41,25 +41,25 @@ class static_driver():
         self.check_for_error( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype )
 
         #Begin by calculating initial mean-field Hamiltonian
-        print 'Calculating initial mean-field 1RDM for total system'
+        print('Calculating initial mean-field 1RDM for total system')
         if( hamtype == 0 ):
             mf1RDM = hf.rhf_calc_hubbard( Nele, h_site ) #PING need to change this to general HF call
         elif( hamtype == 1 ):
             mf1RDM = hf.rhf_calc_hubbard( Nele, h_site )
 
         #Initialize the total system including the mf 1RDM and fragment information
-        print 'Initialize fragment information'
+        print('Initialize fragment information')
         self.tot_system = system_mod.system( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mf1RDM )
 
     #####################################################################
 
     def kernel( self ):
 
-        print
-        print '********************************************'
-        print '     BEGIN STATIC DMET CALCULATION       '
-        print '********************************************'
-        print
+        print()
+        print('********************************************')
+        print('     BEGIN STATIC DMET CALCULATION       ')
+        print('********************************************')
+        print()
 
         ####DMET outer-loop####
         convg = False
@@ -95,25 +95,25 @@ class static_driver():
             old_glob1RDM = np.copy( self.tot_system.glob1RDM )
 
             if( np.mod( itr, self.Maxitr/10 ) == 0 and itr > 0 ):
-                print 'Finished DMET Iteration',itr
-                print 'Current difference in global 1RDM =',dif
-                print
+                print('Finished DMET Iteration',itr)
+                print('Current difference in global 1RDM =',dif)
+                print()
 
         ####END DMET outer-loop####
 
         if( convg ):
-            print 'DMET calculation succesfully converged in',itr,'iterations'
-            print 'Final difference in global 1RDM =',dif
-            print
+            print('DMET calculation succesfully converged in',itr,'iterations')
+            print('Final difference in global 1RDM =',dif)
+            print()
         else:
-            print 'WARNING: DMET calculation finished, but did not converge in', self.Maxitr, 'iterations'
-            print 'Final difference in global 1RDM =',dif
-            print
+            print('WARNING: DMET calculation finished, but did not converge in', self.Maxitr, 'iterations')
+            print('Final difference in global 1RDM =',dif)
+            print()
 
         ##### Calculate final DMET energy ####
         self.tot_system.get_DMET_E()
-        print 'Final DMET energy =',self.tot_system.DMET_E
-        print
+        print('Final DMET energy =',self.tot_system.DMET_E)
+        print()
 
 #####################################################################
 
@@ -132,19 +132,19 @@ class static_driver():
     
         #Check number of indices
         if( sum([len(arr) for arr in impindx]) > Nsites ):
-            print 'ERROR: List of impurity indices (impindx) has more indices than sites'
-            print
+            print('ERROR: List of impurity indices (impindx) has more indices than sites')
+            print()
             exit()
         elif( sum([len(arr) for arr in impindx]) < Nsites ):
-            print 'ERROR: List of impurity indices (impindx) has fewer indices than sites'
-            print
+            print('ERROR: List of impurity indices (impindx) has fewer indices than sites')
+            print()
             exit()
     
         #Check number of fragments
         if( len(impindx) != Nfrag ):
-            print 'ERROR: Number of fragments specified by Nfrag does not match'
-            print '       number of fragments in list of impurity indices (impindx)'
-            print
+            print('ERROR: Number of fragments specified by Nfrag does not match')
+            print('       number of fragments in list of impurity indices (impindx)')
+            print()
             exit()
     
         #Check that impurities defined using unique indices
@@ -157,16 +157,16 @@ class static_driver():
         #unqchk, cnt = np.unique(chk, return_counts=True)
     
         #if( len(chk) != len(unqchk) ):
-        #    print 'ERROR: The following indices were repeated in the definition of the impurities:'
-        #    print unqchk[cnt>1]
-        #    print
+        #    print('ERROR: The following indices were repeated in the definition of the impurities:')
+        #    print(unqchk[cnt>1])
+        #    print()
         #    exit()       
     
         #Check that for each fragment, impurities are assigned in ascending order (does not have to be sequential)
         for count, arr in enumerate(impindx):
             if( not np.all( np.diff(arr) > 0 ) ):
-                print 'ERROR: Fragment number',count,'does not have impurity indices in ascending order'
-                print
+                print('ERROR: Fragment number',count,'does not have impurity indices in ascending order')
+                print()
                 exit()
     
     #####################################################################

@@ -30,7 +30,7 @@ def make_1D_hubbard( Nsites, U, boundary, Full=False ):
 def make_1D_hubbard_arbitrary( Nsites, U, t, boundary, Full=False ):
 
     if( np.iscomplex(U) ):
-        print "ERROR: Hubbard U is complex"
+        print("ERROR: Hubbard U is complex")
         exit()
 
     Tmat = np.zeros( (Nsites,Nsites), dtype=complex )   
@@ -67,7 +67,7 @@ def make_2D_hubbard( Nx, Ny, Nx_imp, Ny_imp, U, boundary, Full=False ):
     #  10  11  14  15
 
     if( ( Nx % Nx_imp != 0 ) or ( Ny % Ny_imp != 0 ) ):
-        print 'ERROR: Impurity dimensions dont tesselate the full lattice'
+        print('ERROR: Impurity dimensions dont tesselate the full lattice')
         exit()
 
     Nsites = Nx * Ny
@@ -149,7 +149,7 @@ def make_ham_single_imp_anderson( Nlead, E_imp, U, A, B, delE_lead, energyorder=
 
     #Input error checks
     if( Nlead % 2 != 1 ):
-        print "ERROR: Number of lead states for anderson impurity model is not odd"
+        print("ERROR: Number of lead states for anderson impurity model is not odd")
         exit()
 
     #gamma gives the energy scale
@@ -231,7 +231,7 @@ def make_ham_single_imp_anderson_realspace( NL, NR, Vg, U, t, Vbias, tleads=1.0,
 
     #Input error check
     if( np.absolute(NL-NR) != 1 and np.absolute(NL-NR) != 0 ):
-        print 'ERROR: Difference between number of sites in the left and right leads must be 0 or 1'
+        print('ERROR: Difference between number of sites in the left and right leads must be 0 or 1')
         exit()
 
     #Scale all energy values by tleads
@@ -315,7 +315,7 @@ def make_ham_wilson_chain( NL, NR, Vg, U, t, Vbias, tleads=1.0, Lambda=1.0, z=0.
 
     #Input error check
     if( np.absolute(NL-NR) != 1 and np.absolute(NL-NR) != 0 ):
-        print 'ERROR: Difference between number of sites in the left and right leads must be 0 or 1'
+        print('ERROR: Difference between number of sites in the left and right leads must be 0 or 1')
         exit()
 
     #Scale all energy values by tleads
@@ -402,7 +402,7 @@ def make_ham_diatomic_sto3g(typ,R):
         z1 = 2.0
         zeta_1_sq = zeta_he_sq
     else:
-        print "Eror in make_ham_diatomic_sto3g(): typ must be either 'h2' or 'hehp'"
+        print("Eror in make_ham_diatomic_sto3g(): typ must be either 'h2' or 'hehp'")
         sys.exit(1)
 
     #define second atom always as hydrogen

@@ -1,0 +1,24 @@
+#!/bin/bash -l
+  
+#PBS -S /bin/bash
+#PBS -q chemx
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:10:00
+#PBS -N pdmet_timing1
+#PBS -e pbs_error_file.err
+#PBS -o pbs_output_file.out
+#PBS -V
+
+module load anaconda3/latest
+
+conda activate my_conda_env
+
+cd $PBS_O_WORKDIR
+
+t1=`date +%s`
+
+python dynamics_test.py > josh.out
+
+t2=`date +%s`
+
+echo 'time for job =' $((t2-t1))
