@@ -13,7 +13,7 @@ def make_1D_hubbard( Nsites, U, boundary, Full=False ):
     if( Full ):
         Vmat = np.zeros( (Nsites,Nsites,Nsites,Nsites) )
     else:
-        Vmat = None
+        Vmat = U
 
     for i in range(Nsites-1):
         Tmat[ i, i+1 ] = Tmat[ i+1, i ] = -t
