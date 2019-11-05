@@ -16,7 +16,7 @@ class static_driver():
 
     #####################################################################
 
-    def __init__( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0, mubool=True, Maxitr=100, tol=1e-12 ):
+    def __init__( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0, mubool=True, nproc=1, periodic=False, Maxitr=100, tol=1e-12 ):
 
         #Nsites  - total number of sites (or basis functions) in total system
         #Nele    - total number of electrons
@@ -25,7 +25,11 @@ class static_driver():
         #h_site  - 1 e- hamiltonian in site-basis for total system
         #V_site  - 2 e- hamiltonian in site-basis for total system
         #hamtype - integer defining if using a special Hamiltonian like Hubbard or Anderson Impurity
+        #mubool  - boolean switching between using a global chemical potential to optimize DMET # of electrons or not
+        #nproc   - number of processors for calculation - careful, there is no check that this matches the pbs script
+        #periodic - boolean which states whether system is periodic or not and thus only need to solve for one impurity as they're all the same
         #Maxitr  - max number of DMET iterations
+        #tol     - tolerance for difference in 1RDM during DMET cycle
 
         print()
         print('********************************************')
@@ -36,9 +40,10 @@ class static_driver():
         self.mubool = mubool
         self.Maxitr = Maxitr
         self.tol    = tol
+        self.nproc  = nproc
 
         #Check for input errors
-        self.check_for_error( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype )
+        self.check_for_error( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, periodic )
 
         #Begin by calculating initial mean-field Hamiltonian
         print('Calculating initial mean-field 1RDM for total system')
@@ -47,9 +52,11 @@ class static_driver():
         elif( hamtype == 1 ):
             mf1RDM = hf.rhf_calc_hubbard( Nele, h_site )
 
+        #utils.printarray(mf1RDM)#msh
+
         #Initialize the total system including the mf 1RDM and fragment information
         print('Initialize fragment information')
-        self.tot_system = system_mod.system( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mf1RDM )
+        self.tot_system = system_mod.system( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mf1RDM, periodic )
 
     #####################################################################
 
@@ -75,7 +82,7 @@ class static_driver():
                 brentq( self.Nele_cost_function, lint, rint )
             else:
                 #Single impurity calculation not using a global chemical potential for embedding calculations
-                self.tot_system.corr_emb_calc()
+                self.tot_system.corr_emb_calc(self.nproc)
 
             #Form the global density matrix from all impurities
             self.tot_system.get_glob1RDM()
@@ -120,14 +127,14 @@ class static_driver():
     def Nele_cost_function( self, mu ):
     
         self.tot_system.mu = mu
-        self.tot_system.corr_emb_calc()
+        self.tot_system.corr_emb_calc(self.nproc)
         self.tot_system.get_DMET_Nele()
     
         return self.tot_system.Nele - self.tot_system.DMET_Nele
 
 #####################################################################
 
-    def check_for_error( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0 ):
+    def check_for_error( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, periodic ):
         #Subroutine that takes all inputs and checks for any input errors
     
         #Check number of indices
@@ -168,6 +175,15 @@ class static_driver():
                 print('ERROR: Fragment number',count,'does not have impurity indices in ascending order')
                 print()
                 exit()
-    
+
+        #Check that all fragments same size if system is periodic
+        if( periodic ):
+            Nimp = len(impindx[0])
+            for arr in impindx:
+                if( len(arr) != Nimp ):
+                    print('ERROR: System is periodic, but all fragments are not of the same size')
+                    print()
+                    exit()
+ 
     #####################################################################
 

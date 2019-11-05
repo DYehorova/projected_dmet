@@ -2,21 +2,20 @@
   
 #PBS -S /bin/bash
 #PBS -q metis
-#PBS -l nodes=1:ppn=3
-#PBS -l walltime=00:30:00
-#PBS -N pdmet_test
+#PBS -l nodes=1:ppn=4
+#PBS -l walltime=01:00:00
+#PBS -N pdmet_test_name
 #PBS -e pbs_error_file.err
 #PBS -o pbs_output_file.out
 #PBS -V
+
+export MKL_NUM_THREADS=4
 
 module load anaconda3/latest
 
 conda activate my_conda_env
 
-export MKL_NUM_THREADS=1
-
 cd $PBS_O_WORKDIR
 
-#python3 static_test.py > josh.out
 python3 dynamics_test.py > josh.out
 

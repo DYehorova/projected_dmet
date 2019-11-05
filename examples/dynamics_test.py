@@ -25,6 +25,8 @@ Full    = True
 mubool  = False
 hamtype = 0
 
+nproc  = 1
+
 delt   = 0.001
 Nstep  = 1000
 Nprint = 1
@@ -58,7 +60,7 @@ U     = 0.0
 Vbias = 0.0
 h_site, V_site = make_hams.make_ham_single_imp_anderson_realspace( NL, NR, Vg, U, t, Vbias, tleads, Full  )
 
-the_dmet = static_driver.static_driver( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mubool )
+the_dmet = static_driver.static_driver( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mubool, nproc )
 the_dmet.kernel()
 
 #FCI Check for static calculation
@@ -74,6 +76,6 @@ Vbias = -0.001
 #Vbias = 0.0
 h_site, V_site = make_hams.make_ham_single_imp_anderson_realspace( NL, NR, Vg, U, t, Vbias, tleads, Full  )
 
-rt_dmet = dynamics_driver.dynamics_driver( h_site, V_site, hamtype, the_dmet.tot_system, delt, Nstep, Nprint, integ )
+rt_dmet = dynamics_driver.dynamics_driver( h_site, V_site, hamtype, the_dmet.tot_system, delt, Nstep, Nprint, integ, nproc )
 rt_dmet.kernel()
 

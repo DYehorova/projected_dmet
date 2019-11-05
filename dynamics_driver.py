@@ -6,6 +6,9 @@ import utils
 import applyham_pyscf
 import sys
 import os
+import multiprocessing as multproc
+
+import time
 
 import fci_mod
 import pyscf.fci
@@ -17,7 +20,7 @@ class dynamics_driver():
 
     #####################################################################
 
-    def __init__( self, h_site, V_site, hamtype, tot_system, delt, Nstep, Nprint=100, integ='rk1', init_time=0.0 ):
+    def __init__( self, h_site, V_site, hamtype, tot_system, delt, Nstep, Nprint=100, integ='rk1', nproc=1, init_time=0.0 ):
 
         #h_site     - 1 e- hamiltonian in site-basis for total system to run dynamics
         #V_site     - 2 e- hamiltonian in site-basis for total system to run dynamics
@@ -28,6 +31,7 @@ class dynamics_driver():
         #Nprint     - number of time-steps between printing
         #init_time  - the starting time for the calculation
         #integ      - the type of integrator used
+        #nproc      - number of processors for calculation - careful, there is no check that this matches the pbs script
 
         self.tot_system = tot_system
         self.delt       = delt
@@ -35,6 +39,7 @@ class dynamics_driver():
         self.Nprint     = Nprint
         self.init_time  = init_time
         self.integ      = integ
+        self.nproc      = nproc
 
         print()
         print('********************************************')
@@ -84,7 +89,7 @@ class dynamics_driver():
                 sys.stdout.flush()
 
             #Integrate FCI coefficients and rotation matrix for all fragments
-            self.integrate()
+            self.integrate(self.nproc)
 
             #Increase current_time
             current_time += self.delt
@@ -104,7 +109,7 @@ class dynamics_driver():
 
     #####################################################################
 
-    def integrate( self ):
+    def integrate( self, nproc ):
         #Subroutine to integrate equations of motion for CI coefficients
         #and rotation matrix for all fragments
 
@@ -113,7 +118,7 @@ class dynamics_driver():
 
             #Calculate appropriate changes in rotation matrices and CI coeffients
             #Note that l and k terms are for the rotation matrices and CI coefficients respectively
-            l1_list, k1_list = self.one_rk_step()
+            l1_list, k1_list = self.one_rk_step(nproc)
 
             #Update rotation matrices and CI coefficients by full time step
             for cnt, frag in enumerate(self.tot_system.frag_list):
@@ -132,25 +137,25 @@ class dynamics_driver():
 
             #Calculate appropriate changes in rotation matrices and CI coeffients
             #Note that l and k terms are for the rotation matrices and CI coefficients respectively
-            l1_list, k1_list = self.one_rk_step()
+            l1_list, k1_list = self.one_rk_step(nproc)
 
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l1_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k1_list[cnt]
 
-            l2_list, k2_list = self.one_rk_step()
+            l2_list, k2_list = self.one_rk_step(nproc)
 
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l2_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k2_list[cnt]
 
-            l3_list, k3_list = self.one_rk_step()
+            l3_list, k3_list = self.one_rk_step(nproc)
 
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 1.0*l3_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0*k3_list[cnt]
 
-            l4_list, k4_list = self.one_rk_step()
+            l4_list, k4_list = self.one_rk_step(nproc)
 
             #Update rotation matrices and CI coefficients by full time-step
             for cnt, frag in enumerate( self.tot_system.frag_list ):
@@ -199,7 +204,7 @@ class dynamics_driver():
 
     #####################################################################
 
-    def one_rk_step( self ):
+    def one_rk_step( self, nproc ):
         #Subroutine to calculate one change in a runge-kutta step of any order
         #Prior to calling this routine need to update rotation matrices and CI coefficients
         #of each fragment up to appropriate point
@@ -218,17 +223,22 @@ class dynamics_driver():
             frag.Ecore = 0.0
 
         #Calculate X-matrix
-        self.tot_system.get_Xmats( int(self.tot_system.Nele/2) )
+        self.tot_system.get_Xmats( int(self.tot_system.Nele/2), nproc )
 
         #Calculate change in rotation matrices
         new_rotmat_list = []
         for frag in self.tot_system.frag_list:
             new_rotmat_list.append( -1j * self.delt * np.dot( frag.rotmat, frag.Xmat ) )
 
-        #Calculate change in CI coefficients
-        new_CIcoeffs_list = []
-        for frag in self.tot_system.frag_list:
-            new_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
+        #Calculate change in CI coefficients in parallel
+        if( nproc == 1 ):
+            new_CIcoeffs_list = []
+            for frag in self.tot_system.frag_list:
+                new_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
+        else:
+            frag_pool = multproc.Pool(nproc)
+            new_CIcoeffs_list = frag_pool.starmap( applyham_wrapper, [(frag,self.delt) for frag in self.tot_system.frag_list] )
+            frag_pool.close()
 
         return new_rotmat_list, new_CIcoeffs_list
 
@@ -268,5 +278,17 @@ class dynamics_driver():
         np.savetxt( self.file_output, output.reshape(1, output.shape[0]), fmt_str )
         self.file_output.flush()
 
-    #####################################################################
+#####################################################################
+
+def applyham_wrapper( frag, delt ):
+
+    #Subroutine to call pyscf to apply FCI hamiltonian onto FCI vector in dynamics
+    #Includes the -1j*timestep term
+    #The wrapper is necessary to parallelize using Pool and must be separate from
+    #the class because the class includes IO file types (annoying and ugly but it works)
+
+    return -1j * delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore )
+
+#####################################################################
+
 
