@@ -5,6 +5,7 @@ import sys
 import os
 import utils
 import pyscf.fci
+from pyscf import gto, scf, ao2mo
 import applyham_pyscf
 
 #####################################################################
@@ -13,11 +14,27 @@ def FCI_GS( h, V, Ecore, Norbs, Nele ):
 
     #Subroutine to perform groundstate FCI calculation using pyscf
 
-    cisolver = pyscf.fci.direct_spin1.FCI()
+    if( isinstance(Nele,tuple) ):
+        Nele = sum(Nele)
 
-    cisolver.conv_tol = 1e-16
+    #Define pyscf molecule
+    mol = gto.M()
+    mol.nelectron = Nele
+    mol.incore_anyway = True #this call is necessary to use user defined hamiltonian in fci step
 
-    E_FCI, CIcoeffs = cisolver.kernel( h, V, Norbs, Nele )
+    #First perform HF calculation
+    mf = scf.RHF(mol)
+    mf.get_hcore = lambda *args: h
+    mf.get_ovlp  = lambda *args: np.eye(Norbs)
+    mf._eri = ao2mo.restore(8, V, Norbs)
+    mf.kernel()
+
+    #Perform FCI calculation using HF MOs
+    cisolver = pyscf.fci.FCI(mf,mf.mo_coeff)
+    E_FCI, CIcoeffs = cisolver.kernel()
+
+    #Rotate CI coefficients back to site basis used in DMET calculations
+    CIcoeffs = pyscf.fci.addons.transform_ci_for_orbital_rotation( CIcoeffs, Norbs, Nele, utils.adjoint(mf.mo_coeff) )
 
     return CIcoeffs
 

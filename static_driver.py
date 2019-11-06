@@ -89,7 +89,7 @@ class static_driver():
 
             #Form new mean-field 1RDM from the first N-occupied natural orbitals of global 1RDM
             self.tot_system.get_nat_orbs()
-            self.tot_system.get_new_mf1RDM( self.tot_system.Nele/2 )
+            self.tot_system.get_new_mf1RDM( int(self.tot_system.Nele/2) )
 
             #Check if difference between previous and current 1RDM is less than tolerance
             if( itr > 0 ):

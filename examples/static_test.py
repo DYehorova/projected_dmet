@@ -1,7 +1,8 @@
 import numpy as np
 import sys
 import os
-sys.path.append('/nv/hmetis1/jkretchmer3/codes/projected_dmet/')
+sys.path.append('/Users/joshkretchmer/Documents/Chan_group/projected_dmet/')
+sys.path.append('/Users/joshkretchmer/Documents/Chan_group/pyscf')
 import static_driver
 import dynamics_driver
 import pyscf.fci
@@ -10,7 +11,7 @@ import make_hams
 
 Nsites   = 6
 Nele     = Nsites
-Nfrag    = 3
+Nfrag    = 2
 
 U        = 0.0
 boundary = 1.0
@@ -18,7 +19,7 @@ Full     = False
 
 mubool   = False
 periodic = False
-nproc    = 3
+nproc    = 1
 hamtype  = 1
 
 #N=4 tilings
@@ -27,8 +28,8 @@ hamtype  = 1
 
 #N=6 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]), np.array([4]), np.array([5]) ]
-impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
-#impindx = [ np.array([0,1,2]), np.array([3,4,5]) ]
+#impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
+impindx = [ np.array([0,1,2]), np.array([3,4,5]) ]
 #impindx = [ np.array([5,4,1]), np.array([0,3,2]) ]
 #impindx = [ np.array([1,4,5]), np.array([0,2,3]) ]
 

@@ -14,7 +14,7 @@ def rhf_calc_hubbard(Nelec,Hcore):
     evals,orbs = diagonalize(Hcore)
 
     #Form the 1RDM
-    P = rdm_1el(orbs,Nelec/2)
+    P = rdm_1el(orbs,int(Nelec/2))
 
     return P
 

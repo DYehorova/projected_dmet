@@ -1,7 +1,8 @@
 import numpy as np
 import sys
 import os
-sys.path.append('/nv/hmetis1/jkretchmer3/codes/projected_dmet/')
+sys.path.append('/Users/joshkretchmer/Documents/Chan_group/projected_dmet/')
+sys.path.append('/Users/joshkretchmer/Documents/Chan_group/pyscf')
 import static_driver
 import dynamics_driver
 import pyscf.fci
@@ -25,7 +26,7 @@ Full    = True
 mubool  = False
 hamtype = 0
 
-nproc  = 1
+nproc  = 3
 
 delt   = 0.001
 Nstep  = 1000
