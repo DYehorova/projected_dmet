@@ -110,23 +110,24 @@ class dynamics_driver():
     #####################################################################
 
     def integrate( self, nproc ):
-        #Subroutine to integrate equations of motion for CI coefficients
-        #and rotation matrix for all fragments
+        #Subroutine to integrate equations of motion
 
-        if( self.integ == 'rk1' ):
+        if( self.integ == 'rk1_orb' ):
             #Use 1st order runge-kutta (ie euler's method) to integrate EOMs
+            #Using EOM that explicitly integrate embedding orbitals and CI coefficients using X-matrix
 
             #Calculate appropriate changes in rotation matrices and CI coeffients
             #Note that l and k terms are for the rotation matrices and CI coefficients respectively
-            l1_list, k1_list = self.one_rk_step(nproc)
+            l1_list, k1_list = self.one_rk_step_orb(nproc)
 
             #Update rotation matrices and CI coefficients by full time step
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   += l1_list[cnt]
                 frag.CIcoeffs += k1_list[cnt]
 
-        elif( self.integ == 'rk4' ):
+        elif( self.integ == 'rk4_orb' ):
             #Use 4th order runge-kutta to integrate EOMs
+            #Using EOM that explicitly integrate embedding orbitals and CI coefficients using X-matrix
 
             #Copy rotation matrices (ie orbitals) and CI coefficients at time t
             init_rotmat_list   = []
@@ -137,30 +138,37 @@ class dynamics_driver():
 
             #Calculate appropriate changes in rotation matrices and CI coeffients
             #Note that l and k terms are for the rotation matrices and CI coefficients respectively
-            l1_list, k1_list = self.one_rk_step(nproc)
+            l1_list, k1_list = self.one_rk_step_orb(nproc)
 
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l1_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k1_list[cnt]
 
-            l2_list, k2_list = self.one_rk_step(nproc)
+            l2_list, k2_list = self.one_rk_step_orb(nproc)
 
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l2_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k2_list[cnt]
 
-            l3_list, k3_list = self.one_rk_step(nproc)
+            l3_list, k3_list = self.one_rk_step_orb(nproc)
 
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 1.0*l3_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0*k3_list[cnt]
 
-            l4_list, k4_list = self.one_rk_step(nproc)
+            l4_list, k4_list = self.one_rk_step_orb(nproc)
 
             #Update rotation matrices and CI coefficients by full time-step
             for cnt, frag in enumerate( self.tot_system.frag_list ):
                 frag.rotmat   = init_rotmat_list[cnt]   + 1.0/6.0 * ( l1_list[cnt] + 2.0*l2_list[cnt] + 2.0*l3_list[cnt] + l4_list[cnt] )
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0/6.0 * ( k1_list[cnt] + 2.0*k2_list[cnt] + 2.0*k3_list[cnt] + k4_list[cnt] )
+
+        elif( self.integ == 'rk4_mf' ):
+            #Use 4th order runge-kutta to integrate EOMs
+            #Using EOM that integrates CI coefficients and MF 1RDM 
+            #embedding orbitals obtained by diagonalizing MF 1RDM at each step
+
+            test = 13
 
         elif( self.integ == 'exact' ):
             #Exactly propagate CI coefficients
@@ -204,7 +212,7 @@ class dynamics_driver():
 
     #####################################################################
 
-    def one_rk_step( self, nproc ):
+    def one_rk_step_orb( self, nproc ):
         #Subroutine to calculate one change in a runge-kutta step of any order
         #Prior to calling this routine need to update rotation matrices and CI coefficients
         #of each fragment up to appropriate point

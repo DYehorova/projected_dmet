@@ -30,7 +30,7 @@ nproc  = 1
 delt   = 0.001
 Nstep  = 1000
 Nprint = 1
-integ  = 'rk4'
+integ  = 'rk4_orb'
 
 #N=4 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]) ]
