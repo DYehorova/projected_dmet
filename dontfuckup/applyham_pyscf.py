@@ -38,7 +38,7 @@ def apply_ham_pyscf_check( CIcoeffs, hmat, Vmat, nalpha, nbeta, norbs, Econst, f
 
     else:
 
-        print 'ERROR: the 1e- integrals and 2e- integrals in applyham_pyscf.apply_ham_pyscf_check are NOT both real nor both complex'
+        print('ERROR: the 1e- integrals and 2e- integrals in applyham_pyscf.apply_ham_pyscf_check are NOT both real nor both complex')
         exit()
 
     return CIcoeffs

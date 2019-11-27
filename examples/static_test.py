@@ -1,8 +1,7 @@
 import numpy as np
 import sys
 import os
-sys.path.append('/Users/joshkretchmer/Documents/Chan_group/projected_dmet/')
-sys.path.append('/Users/joshkretchmer/Documents/Chan_group/pyscf')
+sys.path.append('/nv/hmetis1/jkretchmer3/codes/projected_dmet/')
 import static_driver
 import dynamics_driver
 import pyscf.fci

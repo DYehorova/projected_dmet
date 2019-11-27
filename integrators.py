@@ -116,7 +116,7 @@ def runge_kutta_pyscf( CIcoeffs, Norbs, Nalpha, Nbeta, dt, hmat_0, Vmat_0, Econs
 
     #subroutine to integrate the equations of motion of the FCI coefficients using 4th order runge-kutta scheme
     #the hamiltonian is applied using pyscf
-    #allows for complex or real and time dependent or independent hamiltonian
+    #allows for only real but time dependent or independent hamiltonian
     #CIcoeffs is a 2d-complex array containing the CI coefficients, the rows/columns correspond to the alpha/beta strings
     #the strings are ordered in asscending binary order with a 0/1 implies that an orbital is empty/occupied
     #the 2e- integrals, Vmat_i, are given in chemistry notation

@@ -21,7 +21,7 @@ class fragment():
         self.Nsites  = Nsites #total number of sites (or basis functions) in total system
         self.Nele    = Nele #total number of electrons in total system
 
-        self.Ncore = Nele/2 - self.Nimp #Number of core orbitals in fragment
+        self.Ncore = int(Nele/2) - self.Nimp #Number of core orbitals in fragment
         self.Nvirt = Nsites - 2*self.Nimp - self.Ncore #Number of virtual orbitals in fragment
 
         #range of orbitals in embedding basis, embedding basis always indexed as impurity, virtual, bath, core
@@ -40,8 +40,18 @@ class fragment():
         mf1RDM = np.delete( mf1RDM, self.impindx, axis = 0 )
         mf1RDM = np.delete( mf1RDM, self.impindx, axis = 1 )
 
+        #print(mf1RDM)
+        #print()#msh
+
         #diagonalize environment part of 1RDM to obtain embedding (virtual, bath, core) orbitals
         evals, evecs = np.linalg.eigh( mf1RDM )
+
+        #print(evals)
+        #print()
+        #print(evecs)#msh
+        #print()
+        #print('*********************************')
+        #print()
 
         #form rotation matrix consisting of unit vectors for impurity and the evecs for embedding
         #rotation matrix is ordered as impurity, virtual, bath, core
@@ -75,6 +85,11 @@ class fragment():
         if( hamtype == 0 ):
             #General hamiltonian, V_emb currently ( impurities, bath, core ) ^ 4
             V_emb = utils.rot2el_chem( V_site, rotmat_small )
+        elif( hamtype == 1 ):
+            #Hubbard hamiltonian
+            rotmat_vsmall = rotmat_small[:,:2*self.Nimp] #remove core states from rotation matrix
+            self.V_emb = V_site*np.einsum( 'ap,cp,pb,pd->abcd', utils.adjoint( rotmat_vsmall ), utils.adjoint( rotmat_vsmall ), rotmat_vsmall, rotmat_vsmall )
+
 
         #augment the impurity/bath 1e- terms from contribution of coulomb and exchange terms btwn impurity/bath and core
         #and augment the 1 e- term with only half the contribution from the core to be used in DMET energy calculation
@@ -83,6 +98,12 @@ class fragment():
             for core in range( 2*self.Nimp, 2*self.Nimp+self.Ncore ):
                 h_emb[ :2*self.Nimp, :2*self.Nimp ] = h_emb[ :2*self.Nimp, :2*self.Nimp ] + 2*V_emb[ :2*self.Nimp, :2*self.Nimp, core, core ] - V_emb[ :2*self.Nimp, core, core, :2*self.Nimp ]
                 self.h_emb_halfcore += V_emb[ :2*self.Nimp, :2*self.Nimp, core, core ] - 0.5*V_emb[ :2*self.Nimp, core, core, :2*self.Nimp ]
+        elif( hamtype == 1):
+            #Hubbard hamiltonian
+            core_int = V_site * np.einsum( 'ap,pb,p->ab', utils.adjoint( rotmat_vsmall ), rotmat_vsmall, np.einsum( 'pe,ep->p',rotmat_small[:,2*self.Nimp:], utils.adjoint( rotmat_small[:,2*self.Nimp:] ) ) )
+            h_emb[ :2*self.Nimp, :2*self.Nimp ] += core_int
+            self.h_emb_halfcore += 0.5*core_int
+
 
         #calculate the energy associated with core-core interactions, setting it numerically to a real number since it always will be
         Ecore = 0
@@ -94,6 +115,11 @@ class fragment():
                 #General hamiltonian
                 for core2 in range( 2*self.Nimp, 2*self.Nimp+self.Ncore ):
                     Ecore += 2*V_emb[ core1, core1, core2, core2 ] - V_emb[ core1, core2, core2, core1 ]
+            elif( hamtype == 1):
+                #Hubbard hamiltonian
+                vec = np.einsum( 'pe,ep->p',rotmat_small[:,2*self.Nimp:],utils.adjoint( rotmat_small[:,2*self.Nimp:] ) )
+                Ecore += V_site * np.einsum( 'p,p', vec, vec )
+
 
         self.Ecore = Ecore.real
 

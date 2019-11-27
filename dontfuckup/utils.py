@@ -190,8 +190,9 @@ def printarray( array, filename='array.dat', long_fmt=False ):
 
     dim = len(array.shape)
 
-    filehandle = file(filename,'w')
-    filehandle = file(filename,'a')
+    #filehandle = file(filename,'w')
+    #filehandle = file(filename,'a')
+    filehandle = open(filename,'wb')
 
     comp_log = np.iscomplexobj( array )
 
@@ -237,7 +238,7 @@ def printarray( array, filename='array.dat', long_fmt=False ):
             filehandle.write('\n')
 
     else:
-        print 'ERROR: Input array for printing is not of dimension 2, 3, or 4'
+        print('ERROR: Input array for printing is not of dimension 2, 3, or 4')
         exit()
 
 #####################################################################

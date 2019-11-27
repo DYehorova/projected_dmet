@@ -116,7 +116,7 @@ def runge_kutta_pyscf( CIcoeffs, Norbs, Nalpha, Nbeta, dt, hmat_0, Vmat_0, Econs
 
     #subroutine to integrate the equations of motion of the FCI coefficients using 4th order runge-kutta scheme
     #the hamiltonian is applied using pyscf
-    #allows for complex or real and time dependent or independent hamiltonian
+    #allows for only real but time dependent or independent hamiltonian
     #CIcoeffs is a 2d-complex array containing the CI coefficients, the rows/columns correspond to the alpha/beta strings
     #the strings are ordered in asscending binary order with a 0/1 implies that an orbital is empty/occupied
     #the 2e- integrals, Vmat_i, are given in chemistry notation
@@ -127,7 +127,7 @@ def runge_kutta_pyscf( CIcoeffs, Norbs, Nalpha, Nbeta, dt, hmat_0, Vmat_0, Econs
     #returns C at time t+dt
 
     if( not np.iscomplexobj( CIcoeffs ) ):
-        print 'ERROR: CI coefficients in integrators.runge_kutta_pyscf are not a complex object'
+        print('ERROR: CI coefficients in integrators.runge_kutta_pyscf are not a complex object')
         exit()
 
     if( hmat_1 == None ):
@@ -187,7 +187,7 @@ def runge_kutta_pyscf_nosym( CIcoeffs, Norbs, Nalpha, Nbeta, dt, hmat_0, Vmat_0,
     #returns C at time t+dt
 
     if( not np.iscomplexobj( CIcoeffs ) ):
-        print 'ERROR: CI coefficients in integrators.runge_kutta_pyscf_nosym are not a complex object'
+        print('ERROR: CI coefficients in integrators.runge_kutta_pyscf_nosym are not a complex object')
         exit()
 
     if( hmat_1 == None ):
@@ -284,7 +284,7 @@ def runge_kutta_pyscf_nosym_2( CIcoeffs, Norbs, Nalpha, Nbeta, dt, hmat_0, Vmat_
     #in comparison to above subroutine, here subscripts 0, 1, 2, and 3 correspond to hamiltonians that in principle can depend on some set of orbitals and therefore need to be defined for the orbitals corresponding to orb, orb + delt/2*k1_orb, orb + delt/2*k2_orb, orb + delt*k3_orb, where the orbitals are also being integrated by rk4
 
     if( not np.iscomplexobj( CIcoeffs ) ):
-        print 'ERROR: CI coefficients in integrators.runge_kutta_pyscf_nosym are not a complex object'
+        print('ERROR: CI coefficients in integrators.runge_kutta_pyscf_nosym are not a complex object')
         exit()
 
     #Separate CI coefficients into real and imaginary parts
