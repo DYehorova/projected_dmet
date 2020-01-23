@@ -3,6 +3,7 @@
 import numpy as np
 import fragment_mod
 import xmat_mod
+import xmatv2_mod #msh
 import sys
 import os
 import utils
@@ -52,9 +53,10 @@ class system():
 
     def get_glob1RDM( self ):
         #Subroutine to obtain global 1RDM formed from all fragments
+        #Need to have updated rotation matrices and correlated 1RDMs
 
-        #initialize global 1RDM to be complex if rotation matrix is seen to be complex
-        if( np.iscomplexobj( self.frag_list[0].rotmat ) ):
+        #initialize global 1RDM to be complex if rotation matrix or correlated 1RDM is seen to be complex
+        if( np.iscomplexobj( self.frag_list[0].rotmat ) or np.iscomplexobj( self.frag_list[0].corr1RDM ) ):
             self.glob1RDM = np.zeros( [ self.Nsites, self.Nsites ], dtype=complex)
         else:
             self.glob1RDM = np.zeros( [ self.Nsites, self.Nsites ] )
@@ -83,12 +85,18 @@ class system():
         #Subroutine to obtain natural orbitals of global 1RDM
 
         self.NOevals, self.NOevecs = np.linalg.eigh( self.glob1RDM )
+        NOevals, NOevecs = np.linalg.eigh( self.glob1RDM )
+
+        #Re-order such that eigenvalues are in descending order
+        self.NOevals = np.flip(NOevals)
+        self.NOevecs = np.flip(NOevecs,1)
 
     #####################################################################
 
     def get_new_mf1RDM( self, Nocc ):
         #Subroutine to obtain a new idempotent (mean-field) 1RDM from the
         #First Nocc natural orbitals of the global 1RDM
+        #ie natural orbitals with the highest occupation
 
         NOocc = self.NOevecs[ :, :Nocc ]
         self.mf1RDM = 2.0 * np.dot( NOocc, NOocc.T.conj() )
@@ -176,6 +184,13 @@ class system():
 
     #####################################################################
 
+    def get_frag_rotmat( self ):
+        #Subroutine to calculate rotation matrix (ie embedding orbs) for each fragment
+        for frag in self.frag_list:
+            frag.get_rotmat( self.mf1RDM )
+
+    #####################################################################
+
     def get_DMET_Nele( self ):
         #Subroutine to calculate the number of electrons summed over all impurities
         #Necessary to calculate fragment 1RDMs prior to this routine
@@ -220,7 +235,9 @@ class system():
 
         #Solve for super vector containing non-redundant terms of the X-matrices for each fragment
         if( nproc == 1 ):
-            Xvec = xmat_mod.solve_Xvec_serial( self, Nocc )
+            #Xvec = xmat_mod.solve_Xvec_serial( self, Nocc )
+            #msh
+            Xvec = xmatv2_mod.solve_Xvec_serial( self, Nocc )
         else:
             Xvec = xmat_mod.solve_Xvec_parallel( self, Nocc, nproc )
 

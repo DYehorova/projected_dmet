@@ -4,6 +4,8 @@
 
 import numpy as np
 import multiprocessing as multproc
+import xmatv2_mod
+import time
 
 #####################################################################
 
@@ -14,20 +16,20 @@ def solve_Xvec_serial( system, Nocc ):
     #Returns the super-vector containing the elements of all the non-redundant terms of the X-matrices for each fragment
     #NOTE: prior to this routine being called, necessary to have the rotation matrices and 1RDM for each fragment
     #as well as the natural orbitals and eigenvalues of the global 1RDM previously calculated
-    
+
     #Calculate contraction between rotation matrix of each fragment and natural orbitals of global 1RDM
     system.get_natorb_rotmat_contraction()
     
     #Calculate first time-derivative of correlated 1RDMS for each fragment
     system.get_frag_ddt_corr1RDM()
-    
+
     #Form matrix given by one over the difference in the global 1RDM natural orbital evals (ie just the evals of the global 1RDM)
     chi = np.zeros( [system.Nsites,system.Nsites] )
     for i in range(Nocc):
         for j in range(Nocc,system.Nsites):
             chi[i,j] = 1.0/(system.NOevals[i]-system.NOevals[j])
             chi[j,i] = 1.0/(system.NOevals[j]-system.NOevals[i])
-    
+
     #Calculate size of X-vec and the matrices needed to calculate it
     #Given by A*emb1*emb2, where A runs over all fragments
     #emb1 runs over the core, bath, and virtual orbitals for each fragment A
@@ -48,7 +50,7 @@ def solve_Xvec_serial( system, Nocc ):
             for emb2 in emb2range:
                 indxdict[ (ifragA, emb1, emb2) ] = sizeX
                 sizeX += 1
-    
+
     #Form omega super-matrix indexed by same as X-vec, site orbital-embedding orbital
     #Note that number of site orbitals and embedding orbitals is the same - the size of the system
     omega = np.zeros( [sizeX, system.Nsites**2], dtype=complex )
@@ -75,7 +77,7 @@ def solve_Xvec_serial( system, Nocc ):
                         omega[Lidx,Ridx] = calc_omega_term( system, fragA, emb1, emb2, site1, emb3, Nocc, chi )
     
                 Lidx += 1
-    
+
     #Form Y super-vector
     Yidx = 0
     Yvec = np.zeros( sizeX, dtype=complex )
@@ -95,7 +97,7 @@ def solve_Xvec_serial( system, Nocc ):
                 Yvec[Yidx] = calc_Yvec_term( system, ifragA, fragA, emb1, emb2, indxdict, omega )
     
                 Yidx += 1
-    
+
     #Form phi super-matrix where first index is same as the Y super-vector above
     #and second index is indexed by B, emb3, and emb4
     #where B runs over all fragments
@@ -132,7 +134,7 @@ def solve_Xvec_serial( system, Nocc ):
                             Rphiidx += 1
     
                 Lphiidx += 1
-    
+
     #Solve inversion equation for X super vector
     return np.linalg.solve( np.eye(sizeX)-phi, Yvec )
 
@@ -373,8 +375,5 @@ def calc_phi_term( system, ifragA, fragA, emb1, emb2, fragB, emb3, emb4, indxdic
         phi_val += 1.0/(eval2-eval1) * ( omega[Lidx1,Ridx1]*val1 - np.conjugate(omega[Lidx2,Ridx2])*val2 )
 
     return phi_val
-
-    #Solve inversion equation for X super vector
-    return np.linalg.solve( np.eye(sizeX)-phi, Yvec )
 
 #####################################################################

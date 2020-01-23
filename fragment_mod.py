@@ -40,18 +40,8 @@ class fragment():
         mf1RDM = np.delete( mf1RDM, self.impindx, axis = 0 )
         mf1RDM = np.delete( mf1RDM, self.impindx, axis = 1 )
 
-        #print(mf1RDM)
-        #print()#msh
-
         #diagonalize environment part of 1RDM to obtain embedding (virtual, bath, core) orbitals
         evals, evecs = np.linalg.eigh( mf1RDM )
-
-        #print(evals)
-        #print()
-        #print(evecs)#msh
-        #print()
-        #print('*********************************')
-        #print()
 
         #form rotation matrix consisting of unit vectors for impurity and the evecs for embedding
         #rotation matrix is ordered as impurity, virtual, bath, core

@@ -52,8 +52,6 @@ class static_driver():
         elif( hamtype == 1 ):
             mf1RDM = hf.rhf_calc_hubbard( Nele, h_site )
 
-        #utils.printarray(mf1RDM)#msh
-
         #Initialize the total system including the mf 1RDM and fragment information
         print('Initialize fragment information')
         self.tot_system = system_mod.system( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mf1RDM, periodic )

@@ -192,7 +192,7 @@ def printarray( array, filename='array.dat', long_fmt=False ):
 
     #filehandle = file(filename,'w')
     #filehandle = file(filename,'a')
-    filehandle = open(filename,'wb')
+    filehandle = open(filename,'w')
 
     comp_log = np.iscomplexobj( array )
 

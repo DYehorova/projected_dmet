@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import os
-sys.path.append('/nv/hmetis1/jkretchmer3/codes/projected_dmet/')
+sys.path.append('/Users/joshkretchmer/Documents/Chan_group/projected_dmet/')
 import static_driver
 import dynamics_driver
 import pyscf.fci
@@ -42,6 +42,7 @@ impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
 #impindx = [ np.array([0,1,2]), np.array([3,4,5]) ]
 #impindx = [ np.array([5,4,1]), np.array([0,3,2]) ]
 #impindx = [ np.array([1,4,5]), np.array([0,2,3]) ]
+#impindx = [ np.array([0]), np.array([1,2,3]), np.array([4,5]) ]
 
 #N=8 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]), np.array([4]), np.array([5]), np.array([6]), np.array([7]) ]

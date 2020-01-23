@@ -27,7 +27,7 @@ def solve_Xvec_serial( system, Nocc ):
         for j in range(Nocc,system.Nsites):
             chi[i,j] = 1.0/(system.NOevals[i]-system.NOevals[j])
             chi[j,i] = 1.0/(system.NOevals[j]-system.NOevals[i])
-    
+
     #Calculate size of X-vec and the matrices needed to calculate it
     #Given by A*emb1*emb2, where A runs over all fragments
     #emb1 runs over the core, bath, and virtual orbitals for each fragment A
