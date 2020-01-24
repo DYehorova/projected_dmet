@@ -234,12 +234,14 @@ class system():
     def get_Xmats( self, Nocc, nproc ):
 
         #Solve for super vector containing non-redundant terms of the X-matrices for each fragment
-        if( nproc == 1 ):
-            #Xvec = xmat_mod.solve_Xvec_serial( self, Nocc )
-            #msh
-            Xvec = xmatv2_mod.solve_Xvec_serial( self, Nocc )
-        else:
-            Xvec = xmat_mod.solve_Xvec_parallel( self, Nocc, nproc )
+        #if( nproc == 1 ): #msh can edit and uncomment if switch any of this to parallel code
+        #    #Xvec = xmat_mod.solve_Xvec_serial( self, Nocc )
+        #    #msh
+        #    Xvec = xmatv2_mod.solve_Xvec_serial( self, Nocc )
+        #else:
+        #    Xvec = xmat_mod.solve_Xvec_parallel( self, Nocc, nproc )
+
+        Xvec = xmatv2_mod.solve_Xvec_serial( self, Nocc )
 
         #Unpack super vector into X-matrices for each fragment
         #The X super-vector is indexed by A, emb1, and emb2, where A runs over all fragments

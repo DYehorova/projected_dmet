@@ -129,25 +129,6 @@ class dynamics_driver():
             #Use 4th order runge-kutta to integrate EOMs
             #Using EOM that explicitly integrate embedding orbitals and CI coefficients using X-matrix
 
-            ####### msh ####
-
-            #self.tot_system.get_frag_corr1RDM()
-            #self.tot_system.get_glob1RDM()
-            #self.tot_system.get_nat_orbs()
-            #self.tot_system.get_new_mf1RDM( int( self.tot_system.Nele/2 ) )
-
-            ##utils.printarray( self.tot_system.mf1rdm, 'orb.dat', True )
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'orb.dat', True )
-
-            #self.tot_system.get_frag_rotmat()
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'orb2.dat', True )
-
-            #exit()
-            ###########
-
-
             #Copy rotation matrices (ie orbitals) and CI coefficients at time t
             init_rotmat_list   = []
             init_CIcoeffs_list = []
@@ -162,24 +143,6 @@ class dynamics_driver():
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l1_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k1_list[cnt]
-
-            ######## msh ####
-
-            #self.tot_system.get_frag_corr1RDM()
-            #self.tot_system.get_glob1RDM()
-            #self.tot_system.get_nat_orbs()
-            #self.tot_system.get_new_mf1RDM( int( self.tot_system.Nele/2 ) )
-
-            ##utils.printarray( self.tot_system.mf1RDM, 'orb.dat', True )
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'orb.dat', True )
-
-            #self.tot_system.get_frag_rotmat()
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'orb2.dat', True )
-
-            #exit()
-            ############
 
             l2_list, k2_list = self.one_rk_step_orb(nproc)
 
@@ -200,25 +163,6 @@ class dynamics_driver():
                 frag.rotmat   = init_rotmat_list[cnt]   + 1.0/6.0 * ( l1_list[cnt] + 2.0*l2_list[cnt] + 2.0*l3_list[cnt] + l4_list[cnt] )
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0/6.0 * ( k1_list[cnt] + 2.0*k2_list[cnt] + 2.0*k3_list[cnt] + k4_list[cnt] )
 
-
-            ####### msh ####
-
-            #self.tot_system.get_frag_corr1RDM()
-            #self.tot_system.get_glob1RDM()
-            #self.tot_system.get_nat_orbs()
-            #self.tot_system.get_new_mf1RDM( int( self.tot_system.Nele/2 ) )
-
-            ##utils.printarray( self.tot_system.mf1RDM, 'orb.dat', True )
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'orb.dat', True )
-
-            #self.tot_system.get_frag_rotmat()
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'orb2.dat', True )
-
-            #exit()
-            ###########
-
         elif( self.integ == 'rk4_mf' ):
             #Use 4th order runge-kutta to integrate EOMs
             #Using EOM that integrates CI coefficients and MF 1RDM 
@@ -237,26 +181,6 @@ class dynamics_driver():
             self.tot_system.mf1RDM = init_mf1RDM + 0.5*l1
             for cnt, frag in enumerate(self.tot_system.frag_list):
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k1_list[cnt]
-
-
-            ##### msh ####
-
-            ###utils.printarray( self.tot_system.mf1RDM, 'mf.dat', True )
-
-            #prev_rotmat = []
-            #for frag in self.tot_system.frag_list:
-            #    prev_rotmat.append( np.copy(frag.rotmat) )
-
-            #self.tot_system.get_frag_rotmat()
-
-            #for cnt, frag in enumerate(self.tot_system.frag_list):
-            #    phase = np.diag( np.round( np.diag( np.real( np.dot( utils.adjoint( prev_rotmat[cnt] ), frag.rotmat ) ) ) ) )
-            #    frag.rotmat = np.dot( frag.rotmat, phase )
-
-            #utils.printarray( self.tot_system.frag_list[0].rotmat, 'mf.dat', True )
-            #exit()
-            ##########
-
 
             l2, k2_list = self.one_rk_step_mf(nproc)
 
