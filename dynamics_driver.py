@@ -241,11 +241,7 @@ class dynamics_driver():
             change_CIcoeffs_list = []
 
             for ifrag, frag in enumerate(self.tot_system.frag_list):
-
-                Xmat_sml = np.zeros( [ 2*frag.Nimp, 2*frag.Nimp ], dtype = complex )
-                Xmat_sml[ frag.Nimp:, frag.Nimp: ] = frag.Xmat[ frag.bathrange[:,None], frag.bathrange ]
-
-                change_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb-Xmat_sml, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
+                change_CIcoeffs_list.append( applyham_wrapper( frag, self.delt ) )
 
         else:
             frag_pool = multproc.Pool(nproc)
@@ -313,11 +309,14 @@ class dynamics_driver():
 def applyham_wrapper( frag, delt ):
 
     #Subroutine to call pyscf to apply FCI hamiltonian onto FCI vector in dynamics
-    #Includes the -1j*timestep term
+    #Includes the -1j*timestep term and the addition of bath-bath terms of X-matrix to embedding Hamiltonian
     #The wrapper is necessary to parallelize using Pool and must be separate from
     #the class because the class includes IO file types (annoying and ugly but it works)
 
-    return -1j * delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore )
+    Xmat_sml = np.zeros( [ 2*frag.Nimp, 2*frag.Nimp ], dtype = complex )
+    Xmat_sml[ frag.Nimp:, frag.Nimp: ] = frag.Xmat[ frag.bathrange[:,None], frag.bathrange ]
+
+    return -1j * delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb-Xmat_sml, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore )
 
 #####################################################################
 
