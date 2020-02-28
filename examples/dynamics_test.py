@@ -9,15 +9,14 @@ import utils
 import make_hams
 import time
 
-NL     = 5
-NR     = 4
+NL     = 3
+NR     = 2
 Nsites = NL+NR+1
 Nele   = Nsites
-Nfrag  = 5
+Nfrag  = 3
 
 t  = 0.4
 Vg = 0.0
-
 
 
 tleads  = 1.0
@@ -29,9 +28,9 @@ hamtype = 0
 nproc  = 1
 
 delt   = 0.001
-Nstep  = 10
-Nprint = 1
-integ  = 'rk4_orb'
+Nstep  = 1000
+Nprint = 10
+integ  = 'rk4'
 
 #N=4 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]) ]
@@ -39,7 +38,7 @@ integ  = 'rk4_orb'
 
 #N=6 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]), np.array([4]), np.array([5]) ]
-#impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
+impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
 #impindx = [ np.array([0,1,2]), np.array([3,4,5]) ]
 #impindx = [ np.array([5,4,1]), np.array([0,3,2]) ]
 #impindx = [ np.array([1,4,5]), np.array([0,2,3]) ]
@@ -51,7 +50,7 @@ integ  = 'rk4_orb'
 #impindx = [ np.array([0,1,2,3]), np.array([4,5,6,7]) ]
 
 #N=10 tilings
-impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]), np.array([6,7]), np.array([8,9]) ]
+#impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]), np.array([6,7]), np.array([8,9]) ]
 #impindx = [ np.array([0,1,2,3,4]), np.array([5,6,7,8,9]) ]
 #impindx = [ np.array([7,8,9,3,4]), np.array([0,1,2,5,6])]
 #impindx  = [ np.array([0,1]), np.array([2,3,7]), np.array([4,5,9]), np.array([6,8]) ]
@@ -72,8 +71,6 @@ cisolver.verbose = 3
 E_FCI, CIcoeffs = cisolver.kernel( h_site, V_site, Nsites, Nele )
 print('E_FCI = ',E_FCI)
 
-t1 = time.time()
-
 #Dynamics Calculation
 U     = 0.0
 Vbias = -0.001
@@ -82,8 +79,4 @@ h_site, V_site = make_hams.make_ham_single_imp_anderson_realspace( NL, NR, Vg, U
 
 rt_dmet = dynamics_driver.dynamics_driver( h_site, V_site, hamtype, the_dmet.tot_system, delt, Nstep, Nprint, integ, nproc )
 rt_dmet.kernel()
-
-t2 = time.time()
-
-print('dynamics time = ', t2-t1)
 

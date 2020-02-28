@@ -33,7 +33,7 @@ def get_ddt_mf1rdm_serial( system, Nocc ):
     Yvec = calc_Yvec( Umat, phimat, system.Nsites )
 
     #Solve inversion equation for time derivative of mean-field 1RDM as super-vector
-    ddt_mf1rdm = np.linalg.solve( thetamat, -1j*Yvec)
+    ddt_mf1rdm = np.linalg.solve( thetamat, Yvec)
 
     #Unpack super-vector to normal matrix form of time derivative of mean-field 1RDM
     return ddt_mf1rdm.reshape( [ system.Nsites, system.Nsites ] )
@@ -52,12 +52,20 @@ def calc_Umat( natevals, natorbs, Nsites, Nocc ):
         for nu in range(Nocc,Nsites):
             chi[ mu, nu-Nocc ] = 1.0/(natevals[mu]-natevals[nu])
 
+    ##grr##
+    #chi = np.zeros( [ Nocc, Nsites ] )
+    #for mu in range(Nocc):
+    #    for nu in range(Nsites):
+    #        if( mu != nu and natevals[mu]-natevals[nu] > 1e-14 ):
+    #            chi[ mu, nu ] = 1.0/(natevals[mu]-natevals[nu])
+
     #Adjoint of natural orbitals
     adj_natorbs = utils.adjoint( natorbs )
 
     #Form U tensor by summing over natural orbitals
     #PING can calculate U in this form more quickly using its hermiticity
     U = np.einsum( 'ij,pj,js,ri,iq -> sqpr', chi, natorbs[:,Nocc:], adj_natorbs[Nocc:,:], natorbs[:,:Nocc], adj_natorbs[:Nocc,:] )
+    #U = np.einsum( 'ij,pj,js,ri,iq -> sqpr', chi, natorbs[:,:], adj_natorbs[:,:], natorbs[:,:Nocc], adj_natorbs[:Nocc,:] ) #grr
 
     #Return the total summed U matrix
     return U + np.einsum( 'sqpr -> qsrp', U )
@@ -138,8 +146,11 @@ def calc_phimat( system ):
         #Impurity index within fragment corresponding to site r
         rimp = system.site_to_impindx[r]
 
+        #Impurity and bath orbital range
+        impbath = np.concatenate( ( frag.imprange, frag.bathrange ) )
+
         #Calculate one column of phi-matrix
-        phimat[:,r] = np.dot( frag.rotmat[:,frag.bathrange], 1j * frag.ddt_corr1RDM[frag.Nimp:,rimp] )
+        phimat[:,r] = np.dot( frag.rotmat[:,impbath], 1j * frag.ddt_corr1RDM[:,rimp] )
 
     return phimat
 
@@ -156,7 +167,8 @@ def calc_Yvec( Umat, phimat, Nsites ):
     Yvec = Yvec - utils.adjoint(Yvec)
 
     #Reshape Y vector to be a super-vector
-    return Yvec.reshape(Nsites**2)
+    return -1j*Yvec.reshape(Nsites**2)
 
 #####################################################################
+
 

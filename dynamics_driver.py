@@ -8,6 +8,8 @@ import mf1rdm_timedep_mod
 import sys
 import os
 import multiprocessing as multproc
+import pickle
+import scipy
 
 import time
 
@@ -57,16 +59,18 @@ class dynamics_driver():
             if( not np.iscomplexobj( frag.CIcoeffs ) ):
                 frag.CIcoeffs = frag.CIcoeffs.astype(complex)
 
+        if( not np.iscomplexobj( self.tot_system.mf1RDM ) ):
+            self.tot_system.mf1RDM = self.tot_system.mf1RDM.astype(complex)
+
         #Set-up Hamiltonian for dynamics calculation
         self.tot_system.h_site = h_site
         self.tot_system.V_site = V_site
 
         #Define output files
-        #self.file_output   = file( 'output.dat', 'wa' )
-        #self.file_corrdens = file( 'corr_density.dat', 'wa' )
+        self.file_output   = open( 'output.dat', 'w' )
+        self.file_corrdens = open( 'corr_density.dat', 'w' )
 
-        self.file_output   = open( 'output.dat', 'wb' )
-        self.file_corrdens = open( 'corr_density.dat', 'wb' )
+        self.file_test = open( 'test_data.dat', 'w' )#msh
 
     #####################################################################
 
@@ -92,7 +96,7 @@ class dynamics_driver():
             self.integrate(self.nproc)
 
             #Increase current_time
-            current_time += self.delt
+            current_time = self.init_time + (step+1)*self.delt
 
 
         #Print data at final step regardless of Nprint
@@ -100,6 +104,10 @@ class dynamics_driver():
         self.print_data( current_time )
         sys.stdout.flush()
 
+        #Close output files
+        self.file_output.close()
+        self.file_corrdens.close()
+        self.file_test.close()#msh
 
         print()
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -112,106 +120,47 @@ class dynamics_driver():
     def integrate( self, nproc ):
         #Subroutine to integrate equations of motion
 
-        if( self.integ == 'rk1_orb' ):
-            #Use 1st order runge-kutta (ie euler's method) to integrate EOMs
-            #Using EOM that explicitly integrate embedding orbitals and CI coefficients using X-matrix
-
-            #Calculate appropriate changes in rotation matrices and CI coeffients
-            #Note that l and k terms are for the rotation matrices and CI coefficients respectively
-            l1_list, k1_list = self.one_rk_step_orb(nproc)
-
-            #Update rotation matrices and CI coefficients by full time step
-            for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.rotmat   += l1_list[cnt]
-                frag.CIcoeffs += k1_list[cnt]
-
-        elif( self.integ == 'rk4_orb' ):
+        if( self.integ == 'rk4' ):
             #Use 4th order runge-kutta to integrate EOMs
-            #Using EOM that explicitly integrate embedding orbitals and CI coefficients using X-matrix
 
-            #Copy rotation matrices (ie orbitals) and CI coefficients at time t
-            init_rotmat_list   = []
+            #Copy MF 1RDM, CI coefficients, and embedding orbs at time t
+            init_mf1RDM = np.copy( self.tot_system.mf1RDM )
             init_CIcoeffs_list = []
+            init_rotmat_list   = []
             for frag in self.tot_system.frag_list:
                 init_rotmat_list.append( np.copy(frag.rotmat) )
                 init_CIcoeffs_list.append( np.copy(frag.CIcoeffs) )
 
-            #Calculate appropriate changes in rotation matrices and CI coeffients
-            #Note that l and k terms are for the rotation matrices and CI coefficients respectively
-            l1_list, k1_list = self.one_rk_step_orb(nproc)
-
-            for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l1_list[cnt]
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k1_list[cnt]
-
-            l2_list, k2_list = self.one_rk_step_orb(nproc)
-
-            for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*l2_list[cnt]
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k2_list[cnt]
-
-            l3_list, k3_list = self.one_rk_step_orb(nproc)
-
-            for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.rotmat   = init_rotmat_list[cnt]   + 1.0*l3_list[cnt]
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0*k3_list[cnt]
-
-            l4_list, k4_list = self.one_rk_step_orb(nproc)
-
-            #Update rotation matrices and CI coefficients by full time-step
-            for cnt, frag in enumerate( self.tot_system.frag_list ):
-                frag.rotmat   = init_rotmat_list[cnt]   + 1.0/6.0 * ( l1_list[cnt] + 2.0*l2_list[cnt] + 2.0*l3_list[cnt] + l4_list[cnt] )
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0/6.0 * ( k1_list[cnt] + 2.0*k2_list[cnt] + 2.0*k3_list[cnt] + k4_list[cnt] )
-
-        elif( self.integ == 'rk4_mf' ):
-            #Use 4th order runge-kutta to integrate EOMs
-            #Using EOM that integrates CI coefficients and MF 1RDM 
-            #embedding orbitals obtained by diagonalizing MF 1RDM at each step
-
-            #Copy MF 1RDM and CI coefficients at time t
-            init_mf1RDM = np.copy( self.tot_system.mf1RDM )
-            init_CIcoeffs_list = []
-            for frag in self.tot_system.frag_list:
-                init_CIcoeffs_list.append( np.copy(frag.CIcoeffs) )
-
-            #Calculate appropriate changes in MF 1RDM and CI coefficients
-            #Note that l and k terms are for MF 1 RDM and CI coefficients respectively
-            l1, k1_list = self.one_rk_step_mf(nproc)
+            #Calculate appropriate changes in MF 1RDM, embedding orbitals, and CI coefficients
+            #Note that l, k and m terms are for MF 1RDM, emb orbs, and CI coefficients respectively
+            l1, k1_list, m1_list = self.one_rk_step(nproc)
 
             self.tot_system.mf1RDM = init_mf1RDM + 0.5*l1
             for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k1_list[cnt]
+                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*k1_list[cnt]
+                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*m1_list[cnt]
 
-            l2, k2_list = self.one_rk_step_mf(nproc)
+            l2, k2_list, m2_list = self.one_rk_step(nproc)
 
             self.tot_system.mf1RDM = init_mf1RDM + 0.5*l2
             for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*k2_list[cnt]
+                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*k1_list[cnt]
+                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*m2_list[cnt]
 
-            l3, k3_list = self.one_rk_step_mf(nproc)
+            l3, k3_list, m3_list = self.one_rk_step(nproc)
 
             self.tot_system.mf1RDM = init_mf1RDM + 1.0*l3
             for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0*k3_list[cnt]
+                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*k1_list[cnt]
+                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0*m3_list[cnt]
 
-            l4, k4_list = self.one_rk_step_mf(nproc)
+            l4, k4_list, m4_list = self.one_rk_step(nproc)
 
-            #Update MF 1RDM and CI coefficients by full time-step
+            #Update MF 1RDM, emb orbs and CI coefficients by full time-step
             self.tot_system.mf1RDM = init_mf1RDM + 1.0/6.0 * ( l1 + 2.0*l2 + 2.0*l3 + l4 )
             for cnt, frag in enumerate( self.tot_system.frag_list ):
-                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0/6.0 * ( k1_list[cnt] + 2.0*k2_list[cnt] + 2.0*k3_list[cnt] + k4_list[cnt] )
-
-            #Update rotation matrix at new time-step by diagonalizing MF 1RDM maintaing same phase from previous step
-            #Technically maintaining phase amongst each partial step along RK algorithm
-            prev_rotmat = []
-            for frag in self.tot_system.frag_list:
-                prev_rotmat.append( np.copy(frag.rotmat) )
-
-            self.tot_system.get_frag_rotmat()
-
-            for cnt, frag in enumerate(self.tot_system.frag_list):
-                phase = np.diag( np.round( np.diag( np.real( np.dot( utils.adjoint( prev_rotmat[cnt] ), frag.rotmat ) ) ) ) )
-                frag.rotmat = np.dot( frag.rotmat, phase )
+                frag.rotmat   = init_rotmat_list[cnt]   + 1.0/6.0 * ( k1_list[cnt] + 2.0*k2_list[cnt] + 2.0*k3_list[cnt] + k4_list[cnt] )
+                frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0/6.0 * ( m1_list[cnt] + 2.0*m2_list[cnt] + 2.0*m3_list[cnt] + m4_list[cnt] )
 
         elif( self.integ == 'exact' ):
             #Exactly propagate CI coefficients
@@ -255,90 +204,55 @@ class dynamics_driver():
 
     #####################################################################
 
-    def one_rk_step_orb( self, nproc ):
-        #Subroutine to calculate one change in a runge-kutta step of any order
-        #Using EOM that explicitly integrate embedding orbitals and CI coefficients using X-matrix
-        #Prior to calling this routine need to update rotation matrices and CI coefficients
-        #of each fragment up to appropriate point
-
-        #Calculate terms needed for X-matrix
-        self.tot_system.get_frag_corr1RDM()
-        self.tot_system.get_glob1RDM()
-        self.tot_system.get_nat_orbs()
-
-        #Calculate embedding hamiltonian
-        self.tot_system.get_frag_Hemb()
-
-        #mrar
-        for frag in self.tot_system.frag_list:
-            #frag.Ecore = -fci_mod.get_FCI_E( frag.h_emb, frag.V_emb, 0.0, frag.CIcoeffs, 2*frag.Nimp, frag.Nimp, frag.Nimp )
-            frag.Ecore = 0.0
-
-        #Calculate X-matrix
-        self.tot_system.get_Xmats( int(self.tot_system.Nele/2), nproc )
-
-        #Calculate change in rotation matrices
-        new_rotmat_list = []
-        for frag in self.tot_system.frag_list:
-            new_rotmat_list.append( -1j * self.delt * np.dot( frag.rotmat, frag.Xmat ) )
-
-        #Calculate change in CI coefficients in parallel
-        if( nproc == 1 ):
-            new_CIcoeffs_list = []
-            for frag in self.tot_system.frag_list:
-                new_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
-        else:
-            frag_pool = multproc.Pool(nproc)
-            new_CIcoeffs_list = frag_pool.starmap( applyham_wrapper, [(frag,self.delt) for frag in self.tot_system.frag_list] )
-            frag_pool.close()
-
-        return new_rotmat_list, new_CIcoeffs_list
-
-    #####################################################################
-
-    def one_rk_step_mf( self, nproc ):
+    def one_rk_step( self, nproc ):
         #Subroutine to calculate one change in a runge-kutta step of any order
         #Using EOM that integrates CI coefficients and MF 1RDM 
         #embedding orbitals obtained by diagonalizing MF 1RDM at each step
         #Prior to calling this routine need to update MF 1RDM and CI coefficients
 
-        #Calculate embedding orbitals maintaining same phase from previous step
-        prev_rotmat = []
-        for frag in self.tot_system.frag_list:
-            prev_rotmat.append( np.copy(frag.rotmat) )
-
-        self.tot_system.get_frag_rotmat()
-
-        for cnt, frag in enumerate(self.tot_system.frag_list):
-            phase = np.diag( np.round( np.diag( np.real( np.dot( utils.adjoint( prev_rotmat[cnt] ), frag.rotmat ) ) ) ) )
-            frag.rotmat = np.dot( frag.rotmat, phase )
-
-        #Calculate the rest of the terms needed for time-derivative of MF-1RDM
+        #calculate the terms needed for time-derivative of mf-1rdm
         self.tot_system.get_frag_corr1RDM()
         self.tot_system.get_glob1RDM()
         self.tot_system.get_nat_orbs()
 
-        #Calculate embedding hamiltonian
+        #Calculate change in mf1RDM
+        change_mf1RDM = mf1rdm_timedep_mod.get_ddt_mf1rdm_serial( self.tot_system, round(self.tot_system.Nele/2) )
+
+        #Use change in mf1RDM to calculate X-matrix for each fragment
+        self.tot_system.get_frag_Xmat( change_mf1RDM )
+
+        #Multiply change in mf1RDM by time-step
+        change_mf1RDM *= self.delt
+
+        #Calculate change in embedding orbitals
+        change_rotmat_list = []
+        for frag in self.tot_system.frag_list:
+            change_rotmat_list.append( -1j * self.delt * np.dot( frag.rotmat, frag.Xmat ) )
+
+        #calculate embedding hamiltonian
         self.tot_system.get_frag_Hemb()
 
         #Make sure Ecore for each fragment is 0 for dynamics
         for frag in self.tot_system.frag_list:
             frag.Ecore = 0.0
 
-        #Calculate change in mf1RDM
-        change_mf1RDM = self.delt * mf1rdm_timedep_mod.get_ddt_mf1rdm_serial( self.tot_system, int(self.tot_system.Nele/2) )
-
         #Calculate change in CI coefficients in parallel
         if( nproc == 1 ):
             change_CIcoeffs_list = []
-            for frag in self.tot_system.frag_list:
-                change_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
+
+            for ifrag, frag in enumerate(self.tot_system.frag_list):
+
+                Xmat_sml = np.zeros( [ 2*frag.Nimp, 2*frag.Nimp ], dtype = complex )
+                Xmat_sml[ frag.Nimp:, frag.Nimp: ] = frag.Xmat[ frag.bathrange[:,None], frag.bathrange ]
+
+                change_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb-Xmat_sml, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
+
         else:
             frag_pool = multproc.Pool(nproc)
             change_CIcoeffs_list = frag_pool.starmap( applyham_wrapper, [(frag,self.delt) for frag in self.tot_system.frag_list] )
             frag_pool.close()
 
-        return change_mf1RDM, change_CIcoeffs_list
+        return change_mf1RDM, change_rotmat_list, change_CIcoeffs_list
 
     #####################################################################
 
@@ -354,6 +268,19 @@ class dynamics_driver():
 
         #Calculate total number of electrons
         self.tot_system.get_DMET_Nele()
+
+        ####msh####
+        frag = self.tot_system.frag_list[0]
+        #Efci = fci_mod.get_FCI_E( frag.h_emb, frag.V_emb, 0.0, frag.CIcoeffs, 2*frag.Nimp, frag.Nimp, frag.Nimp )
+        #print( Efci, file=self.file_test )
+        testdata = np.zeros(3+self.tot_system.Nsites)
+        testdata[0] = current_time
+        testdata[1] = np.linalg.norm( frag.CIcoeffs )**2
+        testdata[2] = np.real( np.sum( np.diag( frag.corr1RDM ) ) )
+        testdata[3:] = np.copy( np.real( np.diag( np.dot( utils.adjoint( frag.rotmat ), frag.rotmat ) ) ) )
+        np.savetxt( self.file_test, testdata.reshape(1, testdata.shape[0]), fmt_str )
+        self.file_test.flush()
+        ###########
 
 
         ######## PRINT OUT EVERYTHING #######
@@ -375,6 +302,11 @@ class dynamics_driver():
         output[2] = self.tot_system.DMET_Nele
         np.savetxt( self.file_output, output.reshape(1, output.shape[0]), fmt_str )
         self.file_output.flush()
+
+        #Save total system to file for restart purposes using pickle
+        file_system = open( 'restart_system.dat', 'wb' )
+        pickle.dump( self.tot_system, file_system )
+        file_system.close()
 
 #####################################################################
 

@@ -25,10 +25,10 @@ class fragment():
         self.Nvirt = Nsites - 2*self.Nimp - self.Ncore #Number of virtual orbitals in fragment
 
         #range of orbitals in embedding basis, embedding basis always indexed as impurity, virtual, bath, core
-        self.imprange  = range(0, self.Nimp)
-        self.virtrange = range(self.Nimp, self.Nimp+self.Nvirt)
-        self.bathrange = range(self.Nimp+self.Nvirt, 2*self.Nimp+self.Nvirt)
-        self.corerange = range(2*self.Nimp+self.Nvirt, self.Nsites)
+        self.imprange  = np.arange(0, self.Nimp)
+        self.virtrange = np.arange(self.Nimp, self.Nimp+self.Nvirt)
+        self.bathrange = np.arange(self.Nimp+self.Nvirt, 2*self.Nimp+self.Nvirt)
+        self.corerange = np.arange(2*self.Nimp+self.Nvirt, self.Nsites)
 
     #####################################################################
 
@@ -40,18 +40,8 @@ class fragment():
         mf1RDM = np.delete( mf1RDM, self.impindx, axis = 0 )
         mf1RDM = np.delete( mf1RDM, self.impindx, axis = 1 )
 
-        #print(mf1RDM)
-        #print()#msh
-
         #diagonalize environment part of 1RDM to obtain embedding (virtual, bath, core) orbitals
         evals, evecs = np.linalg.eigh( mf1RDM )
-
-        #print(evals)
-        #print()
-        #print(evecs)#msh
-        #print()
-        #print('*********************************')
-        #print()
 
         #form rotation matrix consisting of unit vectors for impurity and the evecs for embedding
         #rotation matrix is ordered as impurity, virtual, bath, core
@@ -212,9 +202,32 @@ class fragment():
 
     #####################################################################
 
-    def init_Xmat( self ):
-        #Subroutine to initialize the X-matrix to zero
+    def get_Xmat( self, mf1RDM, ddt_mf1RDM ):
+        #Subroutine to calculate the X-matrix to propagate embedding orbitals
 
+        #Initialize X-matrix
         self.Xmat = np.zeros( [self.Nsites, self.Nsites], dtype=complex )
+
+        #Index of orbitals in the site-basis corresponding to the environment
+        envindx = np.setdiff1d( np.arange(self.Nsites), self.impindx)
+
+        #Eigenvalues of environment part of mf1RDM
+        self.env1RDM_evals = np.diag( np.real( utils.rot1el( mf1RDM[ envindx[:,None], envindx ], self.rotmat[ envindx, self.Nimp: ] ) ) )
+
+        #Calculate X-matrix setting diagonal, core-core, and virtual virtual terms to zero
+
+        #Matrix of one over the difference in embedding orbital eigenvalues
+        #Set redundant terms to zero, ie diagonal, core-core, and virtual-virtual
+        eval_dif = np.zeros( [ self.Nsites-self.Nimp, self.Nsites-self.Nimp ] )
+        for b in range(self.Nimp,self.Nsites):
+            for a in range(self.Nimp,self.Nsites):
+                if( a != b and not ( a in self.corerange and b in self.corerange ) and not ( a in self.virtrange and b in self.virtrange ) ):
+                    eval_dif[ b-self.Nimp, a-self.Nimp ] = 1.0 / ( self.env1RDM_evals[a-self.Nimp] - self.env1RDM_evals[b-self.Nimp] )
+
+        #Rotate time-derivative of mean-field 1RDM
+        self.Xmat[ self.Nimp:, self.Nimp: ] = utils.rot1el( 1j*ddt_mf1RDM[ envindx[:,None], envindx ], self.rotmat[ envindx, self.Nimp: ] )
+
+        #Multiply difference in eigenalues and rotated time-derivative matrix
+        self.Xmat[ self.Nimp:, self.Nimp: ] = np.multiply( eval_dif, self.Xmat[ self.Nimp:, self.Nimp: ] )
 
     #####################################################################

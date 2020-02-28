@@ -33,7 +33,7 @@ def FCI_GS( h, V, Ecore, Norbs, Nele ):
     cisolver = pyscf.fci.FCI(mf,mf.mo_coeff)
     E_FCI, CIcoeffs = cisolver.kernel()
 
-    #Rotate CI coefficients back to site basis used in DMET calculations
+    #Rotate CI coefficients back to basis used in DMET calculations
     CIcoeffs = pyscf.fci.addons.transform_ci_for_orbital_rotation( CIcoeffs, Norbs, Nele, utils.adjoint(mf.mo_coeff) )
 
     return CIcoeffs

@@ -2,8 +2,6 @@
 
 import numpy as np
 import fragment_mod
-import xmat_mod
-import xmatv2_mod #msh
 import sys
 import os
 import utils
@@ -61,9 +59,9 @@ class system():
         else:
             self.glob1RDM = np.zeros( [ self.Nsites, self.Nsites ] )
 
-        #form global 1RDM
+        #form global 1RDM forcing hermiticity
         for p in range(self.Nsites):
-            for q in range(self.Nsites):
+            for q in range(p,self.Nsites):
 
                 #fragment associated with site p & q
                 pfrag = self.frag_list[ self.site_to_frag_list[p] ]
@@ -79,12 +77,14 @@ class system():
                 self.glob1RDM[p,q]  = 0.5 * utils.matprod( pfrag.rotmat[p,pidx], pfrag.corr1RDM, pfrag.rotmat[q,pidx].conj().T )
                 self.glob1RDM[p,q] += 0.5 * utils.matprod( qfrag.rotmat[p,qidx], qfrag.corr1RDM, qfrag.rotmat[q,qidx].conj().T )
 
+                if( p != q ):
+                    self.glob1RDM[q,p] = np.conjugate( self.glob1RDM[p,q] )
+
     #####################################################################
 
     def get_nat_orbs( self ):
         #Subroutine to obtain natural orbitals of global 1RDM
 
-        self.NOevals, self.NOevecs = np.linalg.eigh( self.glob1RDM )
         NOevals, NOevecs = np.linalg.eigh( self.glob1RDM )
 
         #Re-order such that eigenvalues are in descending order
@@ -231,40 +231,13 @@ class system():
 
     #####################################################################
 
-    def get_Xmats( self, Nocc, nproc ):
+    def get_frag_Xmat( self, change_mf1RDM ):
 
-        #Solve for super vector containing non-redundant terms of the X-matrices for each fragment
-        #if( nproc == 1 ): #msh can edit and uncomment if switch any of this to parallel code
-        #    #Xvec = xmat_mod.solve_Xvec_serial( self, Nocc )
-        #    #msh
-        #    Xvec = xmatv2_mod.solve_Xvec_serial( self, Nocc )
-        #else:
-        #    Xvec = xmat_mod.solve_Xvec_parallel( self, Nocc, nproc )
+        #Solve for X-matrix of each fragment given current mean-field 1RDM
+        #and the current time-derivative of the mean-field 1RDM
 
-        Xvec = xmatv2_mod.solve_Xvec_serial( self, Nocc )
-
-        #Unpack super vector into X-matrices for each fragment
-        #The X super-vector is indexed by A, emb1, and emb2, where A runs over all fragments
-        #emb1 runs over the core, bath, and virtual orbitals for each fragment A
-        #and emb2 runs over all non-redundant terms given emb1
-        Xidx = 0
-        for ifragA, fragA in enumerate(self.frag_list):
-
-            fragA.init_Xmat()
-
-            for emb1 in np.concatenate( ( fragA.virtrange, fragA.bathrange, fragA.corerange ) ):
-
-                if emb1 in fragA.virtrange:
-                    emb2range = np.concatenate( (fragA.bathrange,fragA.corerange) )
-                elif emb1 in fragA.bathrange:
-                    emb2range = np.concatenate( (fragA.virtrange,fragA.corerange) )
-                elif emb1 in fragA.corerange:
-                    emb2range = np.concatenate( (fragA.virtrange,fragA.bathrange) )
-
-                for emb2 in emb2range:
-
-                    fragA.Xmat[emb1,emb2] = Xvec[Xidx] #PING in principle can make X-matrix to not have impurity orbitals since those terms are zero
-                    Xidx += 1
+        for frag in self.frag_list:
+            frag.get_Xmat( self.mf1RDM, change_mf1RDM )
 
     ######################################################################
 
