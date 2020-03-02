@@ -16,7 +16,7 @@ class static_driver():
 
     #####################################################################
 
-    def __init__( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0, mubool=True, nproc=1, periodic=False, Maxitr=100, tol=1e-12 ):
+    def __init__( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0, mubool=True, nproc=1, hubsite_indx=None, periodic=False, Maxitr=100, tol=1e-12 ):
 
         #Nsites  - total number of sites (or basis functions) in total system
         #Nele    - total number of electrons
@@ -54,7 +54,7 @@ class static_driver():
 
         #Initialize the total system including the mf 1RDM and fragment information
         print('Initialize fragment information')
-        self.tot_system = system_mod.system( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mf1RDM, periodic )
+        self.tot_system = system_mod.system( Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype, mf1RDM, hubsite_indx, periodic )
 
     #####################################################################
 
@@ -116,7 +116,7 @@ class static_driver():
             print()
 
         ##### Calculate final DMET energy ####
-        self.tot_system.get_DMET_E()
+        self.tot_system.get_DMET_E( self.nproc )
         print('Final DMET energy =',self.tot_system.DMET_E)
         print()
 

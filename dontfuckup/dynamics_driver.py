@@ -23,7 +23,7 @@ class dynamics_driver():
 
     #####################################################################
 
-    def __init__( self, h_site, V_site, hamtype, tot_system, delt, Nstep, Nprint=100, integ='rk1', nproc=1, init_time=0.0 ):
+    def __init__( self, h_site, V_site, hamtype, tot_system, delt, Nstep, Nprint=100, integ='rk1', nproc=1, hubsite_indx=None, init_time=0.0):
 
         #h_site     - 1 e- hamiltonian in site-basis for total system to run dynamics
         #V_site     - 2 e- hamiltonian in site-basis for total system to run dynamics
@@ -65,6 +65,14 @@ class dynamics_driver():
         #Set-up Hamiltonian for dynamics calculation
         self.tot_system.h_site = h_site
         self.tot_system.V_site = V_site
+        self.tot_system.hamtype = hamtype
+
+        #If running Hubbard-like model, need an array containing index of all sites that have hubbard U term
+        self.tot_system.hubsite_indx = hubsite_indx
+        if( self.tot_system.hamtype == 1 and self.tot_system.hubsite_indx is None ):
+            print('ERROR: Did not specify an array of sites that contain Hubbard U term')
+            print()
+            exit()
 
         #Define output files
         self.file_output   = open( 'output.dat', 'w' )
@@ -144,14 +152,14 @@ class dynamics_driver():
 
             self.tot_system.mf1RDM = init_mf1RDM + 0.5*l2
             for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*k1_list[cnt]
+                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*k2_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 0.5*m2_list[cnt]
 
             l3, k3_list, m3_list = self.one_rk_step(nproc)
 
             self.tot_system.mf1RDM = init_mf1RDM + 1.0*l3
             for cnt, frag in enumerate(self.tot_system.frag_list):
-                frag.rotmat   = init_rotmat_list[cnt]   + 0.5*k1_list[cnt]
+                frag.rotmat   = init_rotmat_list[cnt]   + 1.0*k3_list[cnt]
                 frag.CIcoeffs = init_CIcoeffs_list[cnt] + 1.0*m3_list[cnt]
 
             l4, k4_list, m4_list = self.one_rk_step(nproc)
@@ -169,7 +177,7 @@ class dynamics_driver():
             #Embedding hamiltonian must also be real
 
             #Calculate embedding hamiltonian (isnt technically needed since it doesnt change)
-            self.tot_system.get_frag_Hemb()
+            self.tot_system.get_frag_Hemb(nproc)
 
             #Form FCI hamiltonian (technically only need to do this at time zero since doesnt change)
             for frag in self.tot_system.frag_list:
@@ -210,24 +218,14 @@ class dynamics_driver():
         #embedding orbitals obtained by diagonalizing MF 1RDM at each step
         #Prior to calling this routine need to update MF 1RDM and CI coefficients
 
+        t1 = time.time() #grr
+
         #calculate the terms needed for time-derivative of mf-1rdm
         self.tot_system.get_frag_corr1RDM()
         self.tot_system.get_glob1RDM()
         self.tot_system.get_nat_orbs()
 
-        #Calculate change in mf1RDM
-        change_mf1RDM = mf1rdm_timedep_mod.get_ddt_mf1rdm_serial( self.tot_system, round(self.tot_system.Nele/2) )
-
-        #Use change in mf1RDM to calculate X-matrix for each fragment
-        self.tot_system.get_frag_Xmat( change_mf1RDM )
-
-        #Multiply change in mf1RDM by time-step
-        change_mf1RDM *= self.delt
-
-        #Calculate change in embedding orbitals
-        change_rotmat_list = []
-        for frag in self.tot_system.frag_list:
-            change_rotmat_list.append( -1j * self.delt * np.dot( frag.rotmat, frag.Xmat ) )
+        t2 = time.time() #grr
 
         #calculate embedding hamiltonian
         self.tot_system.get_frag_Hemb()
@@ -236,21 +234,55 @@ class dynamics_driver():
         for frag in self.tot_system.frag_list:
             frag.Ecore = 0.0
 
+        t3 = time.time() #grr
+
+        #Calculate change in mf1RDM
+        change_mf1RDM = mf1rdm_timedep_mod.get_ddt_mf1rdm_serial( self.tot_system, round(self.tot_system.Nele/2), nproc )
+
+        t4 = time.time() #grr
+
+        #Use change in mf1RDM to calculate X-matrix for each fragment
+        self.tot_system.get_frag_Xmat( change_mf1RDM )
+
+        t5 = time.time() #grr
+
+        #Multiply change in mf1RDM by time-step
+        change_mf1RDM *= self.delt
+
+        t6 =time.time() #grr
+
+        #Calculate change in embedding orbitals
+        change_rotmat_list = []
+        for frag in self.tot_system.frag_list:
+            change_rotmat_list.append( -1j * self.delt * np.dot( frag.rotmat, frag.Xmat ) )
+
+        t7 = time.time() #grr
+
         #Calculate change in CI coefficients in parallel
         if( nproc == 1 ):
             change_CIcoeffs_list = []
 
             for ifrag, frag in enumerate(self.tot_system.frag_list):
-
-                Xmat_sml = np.zeros( [ 2*frag.Nimp, 2*frag.Nimp ], dtype = complex )
-                Xmat_sml[ frag.Nimp:, frag.Nimp: ] = frag.Xmat[ frag.bathrange[:,None], frag.bathrange ]
-
-                change_CIcoeffs_list.append( -1j * self.delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb-Xmat_sml, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore ) )
+                change_CIcoeffs_list.append( applyham_wrapper( frag, self.delt ) )
 
         else:
             frag_pool = multproc.Pool(nproc)
             change_CIcoeffs_list = frag_pool.starmap( applyham_wrapper, [(frag,self.delt) for frag in self.tot_system.frag_list] )
             frag_pool.close()
+
+        t8 = time.time() #grr
+
+        #grr
+        #print( 'get stuff = ',t2-t1 )
+        #print( 'hemb = ',t3-t2)
+        #print( 'change mf1rdm = ',t4-t3)
+        #print( 'Xmat = ',t5-t4)
+        #print( 'prop orbs = ',t7-t6)
+        #print( 'prop CI = ',t8-t7)
+        #print( 'tot rk step =',t8-t1)
+        #print()
+        #print('---------------------------')
+        #print()
 
         return change_mf1RDM, change_rotmat_list, change_CIcoeffs_list
 
@@ -264,7 +296,7 @@ class dynamics_driver():
         ######## CALCULATE OBSERVABLES OF INTEREST #######
 
         #Calculate DMET energy, which also includes calculation of 1 & 2 RDMs and embedding hamiltonian for each fragment
-        self.tot_system.get_DMET_E()
+        self.tot_system.get_DMET_E( self.nproc )
 
         #Calculate total number of electrons
         self.tot_system.get_DMET_Nele()
@@ -313,11 +345,14 @@ class dynamics_driver():
 def applyham_wrapper( frag, delt ):
 
     #Subroutine to call pyscf to apply FCI hamiltonian onto FCI vector in dynamics
-    #Includes the -1j*timestep term
+    #Includes the -1j*timestep term and the addition of bath-bath terms of X-matrix to embedding Hamiltonian
     #The wrapper is necessary to parallelize using Pool and must be separate from
     #the class because the class includes IO file types (annoying and ugly but it works)
 
-    return -1j * delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore )
+    Xmat_sml = np.zeros( [ 2*frag.Nimp, 2*frag.Nimp ], dtype = complex )
+    Xmat_sml[ frag.Nimp:, frag.Nimp: ] = frag.Xmat[ frag.bathrange[:,None], frag.bathrange ]
+
+    return -1j * delt * applyham_pyscf.apply_ham_pyscf_fully_complex( frag.CIcoeffs, frag.h_emb-Xmat_sml, frag.V_emb, frag.Nimp, frag.Nimp, 2*frag.Nimp, frag.Ecore )
 
 #####################################################################
 

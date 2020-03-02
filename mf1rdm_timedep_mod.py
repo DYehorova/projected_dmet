@@ -7,9 +7,11 @@ import utils
 import numpy as np
 import multiprocessing as multproc
 
+import time
+
 #####################################################################
 
-def get_ddt_mf1rdm_serial( system, Nocc ):
+def get_ddt_mf1rdm_serial( system, Nocc, nproc ):
 
     #Subroutine to solve the inversion equation for the first
     #time-derivative of the mf 1RDM
@@ -17,23 +19,48 @@ def get_ddt_mf1rdm_serial( system, Nocc ):
     #NOTE: prior to this routine being called, necessary to have the rotation matrices and 1RDM for each fragment
     #as well as the natural orbitals and eigenvalues of the global 1RDM previously calculated
 
+    t1 = time.time() #grr
+
     #Calculate 4-index U tensor
     Umat = calc_Umat( system.NOevals, system.NOevecs, system.Nsites, Nocc )
+
+    t2 = time.time() #grr
 
     #Calculate 4-index R tensor
     Rmat = calc_Rmat( system )
 
+    t3 = time.time() #grr
+
     #Calculate 2-index theta super-matrix
     thetamat = calc_thetamat( Umat, Rmat, system.Nsites )
 
+    t4 = time.time() #grr
+
     #Calculate 2-index phi matrix
-    phimat = calc_phimat( system )
+    phimat = calc_phimat( system, nproc )
+
+    t5 = time.time() #grr
 
     #Calculate Y super-vector
     Yvec = calc_Yvec( Umat, phimat, system.Nsites )
 
+    t6 = time.time() #grr
+
     #Solve inversion equation for time derivative of mean-field 1RDM as super-vector
     ddt_mf1rdm = np.linalg.solve( thetamat, Yvec)
+
+    t7 = time.time() #grr
+
+    #grr
+    #print()
+    #print('U = ',t2-t1)
+    #print('R = ',t3-t2)
+    #print('theta = ',t4-t3)
+    #print('phi = ',t5-t4)
+    #print('Y = ',t6-t5)
+    #print('inv = ',t7-t6)
+
+    #print()
 
     #Unpack super-vector to normal matrix form of time derivative of mean-field 1RDM
     return ddt_mf1rdm.reshape( [ system.Nsites, system.Nsites ] )
@@ -57,7 +84,8 @@ def calc_Umat( natevals, natorbs, Nsites, Nocc ):
 
     #Form U tensor by summing over natural orbitals
     #PING can calculate U in this form more quickly using its hermiticity
-    U = np.einsum( 'ij,pj,js,ri,iq -> sqpr', chi, natorbs[:,Nocc:], adj_natorbs[Nocc:,:], natorbs[:,:Nocc], adj_natorbs[:Nocc,:] )
+    U = np.einsum( 'ij,ri,iq -> jqr', chi, natorbs[:,:Nocc], adj_natorbs[:Nocc,:] )
+    U = np.einsum( 'pj,js,jqr -> sqpr', natorbs[:,Nocc:], adj_natorbs[Nocc:,:], U )
 
     #Return the total summed U matrix
     return U + np.einsum( 'sqpr -> qsrp', U )
@@ -67,38 +95,46 @@ def calc_Umat( natevals, natorbs, Nsites, Nocc ):
 def calc_Rmat( system ):
 
     #Subroutine to calculate the 4-index R tensor
+    #Currently assume that all fragments have same number of impurities
 
-    R = np.zeros( [ system.Nsites, system.Nsites, system.Nsites, system.Nsites ], dtype=complex )
-    for r in range( system.Nsites ):
+    Ncore = system.frag_list[0].Ncore
+    Nvirt = system.frag_list[0].Nvirt
+    Nbath = system.frag_list[0].Nimp
+    Nsites = system.Nsites
+    bathrange = system.frag_list[0].bathrange
 
-        #Fragment corresponding to site r
-        frag = system.frag_list[system.site_to_frag_list[r]]
+    #Concatenated list of virtual and core orbitals
+    virtcore = np.concatenate( ( system.frag_list[0].virtrange, system.frag_list[0].corerange ) )
 
-        #Concatenated list of virtual and core orbitals for fragment
-        virtcore = np.concatenate( ( frag.virtrange, frag.corerange ) )
+    #Unpack necessary components for each fragment
+    rotmat_unpck   = np.zeros( [ Nsites, Nsites, Nsites ], dtype=complex )
+    corr1RDM_unpck = np.zeros( [ Nbath, Nsites ], dtype=complex )
+    chi            = np.zeros( [ Nbath, Ncore+Nvirt, Nsites ] )
+    for r in range( Nsites ):
 
-        #First form matrix given by one over the difference in the environment orbital eigenvalues
+        #Fragment associated with site r
+        frag = system.frag_list[ system.site_to_frag_list[r] ]
+
+        #unpacked embedding orbitals
+        rotmat_unpck[:,:,r] = np.copy( frag.rotmat )
+
+        #unpacked correlated 1RDM
+        corr1RDM_unpck[:,r] = frag.corr1RDM[ frag.Nimp:, system.site_to_impindx[r] ]
+
+        #Unpack the calculated one over the difference in the environment orbital eigenvalues
         #This only has to be defined for the bath - core/virtual space
         #Subtract off terms b/c indexing of embedding orbitals goes as imp,virt,bath,core
-        chi = np.zeros( [ frag.Nimp, frag.Ncore+frag.Nvirt ] )
         i = 0
         for a in frag.bathrange:
             j = 0
             for c in virtcore:
-                chi[i,j] = 1.0/( frag.env1RDM_evals[a-frag.Nimp] - frag.env1RDM_evals[c-frag.Nimp] )
+                chi[i,j,r] = 1.0/( frag.env1RDM_evals[a-frag.Nimp] - frag.env1RDM_evals[c-frag.Nimp] )
                 j += 1
             i += 1
 
-        #Impurity index within fragment corresponding to site r
-        rimp = system.site_to_impindx[r]
-
-        #Adjoint of rotation matrix
-        adj_rotmat = utils.adjoint( frag.rotmat )
-
-        #Form portion of R tensor by summing over embedding orbitals
-        #a is over bath orbitals and c is over virtual and core orbitals
-        R[:,:,:,r] = np.einsum( 'ac,sc,ct,ua,a -> stu', chi, frag.rotmat[:,virtcore], adj_rotmat[virtcore,:], \
-                                                 frag.rotmat[:,frag.bathrange], frag.corr1RDM[frag.Nimp:,rimp] )
+    #Form R tensor by summing over embedding orbitals
+    R = np.einsum( 'acr,uar,ar -> cur', chi, rotmat_unpck[ :, bathrange, : ], corr1RDM_unpck )
+    R = np.einsum( 'scr,tcr,cur -> stur', rotmat_unpck[ :, virtcore, :], np.conjugate( rotmat_unpck[ :, virtcore, : ] ), R )
 
     return R
 
@@ -109,25 +145,22 @@ def calc_thetamat( Umat, Rmat, Nsites ):
     #Subroutine to calculate the 4-index theta matrix
 
     #Contract Umat and Rmat
-    thetamat = np.einsum( 'sqpr,stur -> pqtu', Umat, Rmat )
+    thetamat = np.dot( np.einsum( 'sqpr -> pqsr', Umat ).reshape(Nsites**2,Nsites**2), np.einsum( 'stur -> srtu', Rmat ).reshape(Nsites**2,Nsites**2)  )
 
     #Sum up theta matrix
-    thetamat = thetamat + np.conjugate( np.einsum( 'pqtu -> qput', thetamat ) )
-
-    #Reshape thetamatrix to be a 2-index super matrix
-    thetamat = thetamat.reshape([Nsites**2,Nsites**2])
+    thetamat = thetamat + np.conjugate( np.einsum( 'pqtu -> qput', thetamat.reshape(Nsites,Nsites,Nsites,Nsites) ).reshape(Nsites**2,Nsites**2) )
 
     #Return theta matrix subtracted from identity matrix
     return np.eye(Nsites**2)-thetamat
 
 #####################################################################
 
-def calc_phimat( system ):
+def calc_phimat( system, nproc ):
 
     #Subroutine to calculate the 2-index phi matrix
 
     #Calculate first time-derivative of correlated 1RDMS for each fragment
-    system.get_frag_ddt_corr1RDM()
+    system.get_frag_ddt_corr1RDM( nproc )
 
     phimat = np.zeros( [ system.Nsites, system.Nsites ], dtype=complex )
     for r in range( system.Nsites ):

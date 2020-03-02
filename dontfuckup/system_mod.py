@@ -15,7 +15,7 @@ class system():
 
     #####################################################################
 
-    def __init__( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0, mf1RDM = None, periodic=False, mu=0 ):
+    def __init__( self, Nsites, Nele, Nfrag, impindx, h_site, V_site, hamtype=0, mf1RDM = None, hubsite_indx=None, periodic=False, mu=0 ):
 
         #initialize total system variables
         self.Nsites  = Nsites #total number of sites (or basis functions) in total system
@@ -24,6 +24,13 @@ class system():
         self.mu      = mu #global chemical potential added to only impurity sites in each embedding hamiltonian
         self.hamtype = hamtype #integer defining if using a special Hamiltonian like Hubbard or Anderson Impurity
         self.periodic = periodic #boolean stating whether system is periodic and thus all impurities are the same
+
+        #If running Hubbard-like model, need an array containing index of all sites that have hubbard U term
+        self.hubsite_indx = hubsite_indx
+        if( self.hamtype == 1 and hubsite_indx is None ):
+            print('ERROR: Did not specify an array of sites that contain Hubbard U term')
+            print()
+            exit()
 
         #initialize fragment information
         #note that here impindx should be a list of numpy arrays containing the impurity indices for each fragment
@@ -107,7 +114,7 @@ class system():
         #Subroutine that simply calls the static_corr_calc subroutine for the given fragment class
         #The wrapper is necessary to parallelize using Pool
 
-        frag.static_corr_calc( self.mf1RDM, self.mu, self.h_site, self.V_site, self.hamtype )
+        frag.static_corr_calc( self.mf1RDM, self.mu, self.h_site, self.V_site, self.hamtype, self.hubsite_indx )
         return frag
 
     #####################################################################
@@ -119,7 +126,7 @@ class system():
             #non-periodic: calculate each fragment separately in parallel
             if( nproc == 1 ):
                 for frag in self.frag_list:
-                    frag.static_corr_calc( self.mf1RDM, self.mu, self.h_site, self.V_site, self.hamtype )
+                    frag.static_corr_calc( self.mf1RDM, self.mu, self.h_site, self.V_site, self.hamtype, self.hubsite_indx )
             else:
                 frag_pool = multproc.Pool(nproc)
                 self.frag_list = frag_pool.map( self.static_corr_calc_wrapper, self.frag_list )
@@ -127,7 +134,7 @@ class system():
         else:
             #periodic: calculate the first fragment only - this is not correct
             frag0 = self.frag_list[0]
-            frag0.static_corr_calc( self.mf1RDM, self.mu, self.h_site, self.V_site, self.hamtype )
+            frag0.static_corr_calc( self.mf1RDM, self.mu, self.h_site, self.V_site, self.hamtype, self.hubsite_indx )
 
             #copy first fragment to all other fragments
             for frag in self.frag_list[1:]:
@@ -179,8 +186,9 @@ class system():
 
     def get_frag_Hemb( self ):
         #Subroutine to calculate embedding Hamiltonian for each fragment
+
         for frag in self.frag_list:
-            frag.get_Hemb( self.h_site, self.V_site, self.hamtype )
+            frag.get_Hemb( self.h_site, self.V_site, self.hamtype, self.hubsite_indx )
 
     #####################################################################
 
@@ -200,7 +208,7 @@ class system():
 
     #####################################################################
 
-    def get_DMET_E( self ):
+    def get_DMET_E( self, nproc ):
         #Subroutine to calculate the DMET energy
 
         self.get_frag_Hemb()
@@ -223,11 +231,25 @@ class system():
 
     #####################################################################
 
-    def get_frag_ddt_corr1RDM( self ):
+    def get_frag_ddt_corr1RDM( self, nproc ):
         #Subroutine to calculate first time-derivative of correlated 1RDMS for each fragment
 
-        for frag in self.frag_list:
-            frag.get_ddt_corr1RDM()
+        if( nproc == 1 ):
+            for frag in self.frag_list:
+                frag.get_ddt_corr1RDM()
+        else:
+            frag_pool = multproc.Pool(nproc)
+            self.frag_list = frag_pool.map( self.frag_ddt_corr1RDM_wrapper, self.frag_list )
+            frag_pool.close()
+
+    #####################################################################
+
+    def frag_ddt_corr1RDM_wrapper( self, frag ):
+        #Subroutine that simply calls the get_ddt_corr1RDM subroutine for the given fragment class
+        #The wrapper is necessary to parallelize using Pool
+
+        frag.get_ddt_corr1RDM()
+        return frag
 
     #####################################################################
 

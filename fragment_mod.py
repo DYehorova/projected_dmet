@@ -8,6 +8,7 @@ import utils
 import applyham_pyscf
 
 import pyscf.fci #mrar
+import time
 
 ######## FRAGMENT CLASS #######
 
@@ -56,7 +57,7 @@ class fragment():
 
     #####################################################################
         
-    def get_Hemb( self, h_site, V_site, hamtype=0 ):
+    def get_Hemb( self, h_site, V_site, hamtype=0, hubsite_indx=None ):
         #Subroutine to the get the 1 and 2 e- terms of the Hamiltonian in the embedding basis
         #Transformation accounts for interaction with the core
         #Also calculates 1 e- term with only 1/2 interaction with the core - this is used in calculation of DMET energy
@@ -77,9 +78,8 @@ class fragment():
             V_emb = utils.rot2el_chem( V_site, rotmat_small )
         elif( hamtype == 1 ):
             #Hubbard hamiltonian
-            rotmat_vsmall = rotmat_small[:,:2*self.Nimp] #remove core states from rotation matrix
+            rotmat_vsmall = rotmat_small[ hubsite_indx, :2*self.Nimp ] #remove core states from rotation matrix
             self.V_emb = V_site*np.einsum( 'ap,cp,pb,pd->abcd', utils.adjoint( rotmat_vsmall ), utils.adjoint( rotmat_vsmall ), rotmat_vsmall, rotmat_vsmall )
-
 
         #augment the impurity/bath 1e- terms from contribution of coulomb and exchange terms btwn impurity/bath and core
         #and augment the 1 e- term with only half the contribution from the core to be used in DMET energy calculation
@@ -90,7 +90,7 @@ class fragment():
                 self.h_emb_halfcore += V_emb[ :2*self.Nimp, :2*self.Nimp, core, core ] - 0.5*V_emb[ :2*self.Nimp, core, core, :2*self.Nimp ]
         elif( hamtype == 1):
             #Hubbard hamiltonian
-            core_int = V_site * np.einsum( 'ap,pb,p->ab', utils.adjoint( rotmat_vsmall ), rotmat_vsmall, np.einsum( 'pe,ep->p',rotmat_small[:,2*self.Nimp:], utils.adjoint( rotmat_small[:,2*self.Nimp:] ) ) )
+            core_int = V_site * np.einsum( 'ap,pb,p->ab', utils.adjoint( rotmat_vsmall ), rotmat_vsmall, np.einsum( 'pe,ep->p',rotmat_small[hubsite_indx,2*self.Nimp:], utils.adjoint( rotmat_small[hubsite_indx,2*self.Nimp:] ) ) )
             h_emb[ :2*self.Nimp, :2*self.Nimp ] += core_int
             self.h_emb_halfcore += 0.5*core_int
 
@@ -105,11 +105,10 @@ class fragment():
                 #General hamiltonian
                 for core2 in range( 2*self.Nimp, 2*self.Nimp+self.Ncore ):
                     Ecore += 2*V_emb[ core1, core1, core2, core2 ] - V_emb[ core1, core2, core2, core1 ]
-            elif( hamtype == 1):
-                #Hubbard hamiltonian
-                vec = np.einsum( 'pe,ep->p',rotmat_small[:,2*self.Nimp:],utils.adjoint( rotmat_small[:,2*self.Nimp:] ) )
-                Ecore += V_site * np.einsum( 'p,p', vec, vec )
-
+        if( hamtype == 1):
+            #Hubbard hamiltonian
+            vec = np.einsum( 'pe,ep->p',rotmat_small[hubsite_indx,2*self.Nimp:],utils.adjoint( rotmat_small[hubsite_indx,2*self.Nimp:] ) )
+            Ecore += V_site * np.einsum( 'p,p', vec, vec )
 
         self.Ecore = Ecore.real
 
@@ -118,6 +117,27 @@ class fragment():
         if( hamtype == 0 ):
             #General hamiltonian
             self.V_emb = V_emb[ :2*self.Nimp, :2*self.Nimp, :2*self.Nimp, :2*self.Nimp ]
+
+        ####### grr ####
+        #rotmat_vsmall = rotmat_small[ hubsite_indx, :2*self.Nimp ] #remove core states from rotation matrix
+        #chkV = 1.0*np.einsum( 'ap,cp,pb,pd->abcd', utils.adjoint( rotmat_vsmall ), utils.adjoint( rotmat_vsmall ), rotmat_vsmall, rotmat_vsmall )
+
+        #chkH = utils.rot1el( h_site, rotmat_small )
+        #core_int = 1.0 * np.einsum( 'ap,pb,p->ab', utils.adjoint( rotmat_vsmall ), rotmat_vsmall, np.einsum( 'pe,ep->p',rotmat_small[hubsite_indx,2*self.Nimp:], utils.adjoint( rotmat_small[hubsite_indx,2*self.Nimp:] ) ) )
+        #chkH[ :2*self.Nimp, :2*self.Nimp ] += core_int
+
+        #chkE = 0
+        #for core1 in range( 2*self.Nimp, 2*self.Nimp+self.Ncore ):
+        #    chkE += 2*chkH[ core1, core1 ]
+        #vec = np.einsum( 'pe,ep->p',rotmat_small[hubsite_indx,2*self.Nimp:],utils.adjoint( rotmat_small[hubsite_indx,2*self.Nimp:] ) )
+        #chkE += 1.0 * np.einsum( 'p,p', vec, vec )
+
+
+        #chkH = chkH[ :2*self.Nimp, :2*self.Nimp ]
+
+        #print( np.allclose( self.h_emb, chkH, rtol=0.0, atol=1e-14 ), np.allclose( self.V_emb, chkV, rtol=0.0, atol=1e-14 ), np.allclose( self.Ecore, np.real(chkE), rtol=0.0, atol=1e-14 ) )
+
+        ################
 
     #####################################################################
 
@@ -150,11 +170,11 @@ class fragment():
 
     #####################################################################
 
-    def static_corr_calc( self, mf1RDM, mu, h_site, V_site, hamtype=0 ):
+    def static_corr_calc( self, mf1RDM, mu, h_site, V_site, hamtype=0, hubsite_indx=None ):
         #Subroutine to perform all steps of the static correlated calculation
 
         self.get_rotmat( mf1RDM ) #1) get rotation matrix to embedding basis
-        self.get_Hemb( h_site, V_site, hamtype ) #2) use rotation matrix to compute embedding hamiltonian
+        self.get_Hemb( h_site, V_site, hamtype, hubsite_indx ) #2) use rotation matrix to compute embedding hamiltonian
         self.add_mu_Hemb( mu ) #3) add chemical potential to only impurity sites of embedding hamiltonian
         self.solve_GS() #4) perform corrleated calculation using embedding hamiltonian
         self.get_corr1RDM() #5) calculate correlated 1RDM
@@ -186,9 +206,20 @@ class fragment():
         #Subroutine to calculate first time-derivative of correlated 1RDM
         #Only calculated in the necessary impurity-bath space
 
+        t1 = time.time() #grr
+
         Ctil = applyham_pyscf.apply_ham_pyscf_fully_complex( self.CIcoeffs, self.h_emb, self.V_emb, self.Nimp, self.Nimp, 2*self.Nimp, self.Ecore )
 
+        t2 = time.time() #grr
+
         rdmtil = fci_mod.get_trans1RDM( self.CIcoeffs, Ctil, 2*self.Nimp, 2*self.Nimp )
+
+        t3 = time.time() #grr
+
+        #print()
+        #print( 'Ctil = ',t2-t1 ) #grr
+        #print( 'rdm = ',t3-t2 ) #grr
+        #print()
 
         self.ddt_corr1RDM = -1j*( rdmtil - utils.adjoint( rdmtil ) )
 

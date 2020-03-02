@@ -65,6 +65,7 @@ the_dmet = static_driver.static_driver( Nsites, Nele, Nfrag, impindx, h_site, V_
 the_dmet.kernel()
 
 #FCI Check for static calculation
+h_site, V_site = make_hams.make_ham_single_imp_anderson_realspace( NL, NR, Vg, U, t, Vbias, tleads, True )
 cisolver = pyscf.fci.direct_spin1.FCI()
 cisolver.conv_tol = 1e-16
 cisolver.verbose = 3
