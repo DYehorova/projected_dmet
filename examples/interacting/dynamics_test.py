@@ -15,7 +15,7 @@ Nele   = Nsites
 
 hubsite_indx = np.arange(NL,NL+Ndots)
 
-Nimp   = 1
+Nimp   = 2
 Nfrag  = int(Nsites/Nimp)
 
 timp     = 1.0

@@ -46,8 +46,20 @@ def get_ddt_mf1rdm_serial( system, Nocc, nproc ):
 
     t6 = time.time() #grr
 
+    #msh
+    u, s, v = np.linalg.svd( thetamat )
+    s[ s < 1e-9 ] = 1e-9
+    thetamat = np.dot( u, np.dot( np.diag(s), v ) )
+
     #Solve inversion equation for time derivative of mean-field 1RDM as super-vector
     ddt_mf1rdm = np.linalg.solve( thetamat, Yvec)
+
+    #msh
+    #print( np.linalg.matrix_rank(thetamat), thetamat.shape )
+    #ddt_reshaped = ddt_mf1rdm.reshape( [ system.Nsites, system.Nsites ] )
+    #print( np.allclose( ddt_reshaped, utils.adjoint(ddt_reshaped), rtol=0.0, atol=1e-12 ) )
+    #utils.printarray( ddt_reshaped, 'array.dat', True )
+    #exit()
 
     t7 = time.time() #grr
 

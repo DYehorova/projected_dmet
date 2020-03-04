@@ -9,11 +9,11 @@ import utils
 import make_hams
 import time
 
-NL     = 3
-NR     = 2
+NL     = 4
+NR     = 3
 Nsites = NL+NR+1
 Nele   = Nsites
-Nfrag  = 3
+Nfrag  = 4
 
 t  = 0.4
 Vg = 0.0
@@ -28,7 +28,7 @@ hamtype = 0
 nproc  = 1
 
 delt   = 0.001
-Nstep  = 1000
+Nstep  = 2000
 Nprint = 10
 integ  = 'rk4'
 
@@ -38,7 +38,7 @@ integ  = 'rk4'
 
 #N=6 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]), np.array([4]), np.array([5]) ]
-impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
+#impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
 #impindx = [ np.array([0,1,2]), np.array([3,4,5]) ]
 #impindx = [ np.array([5,4,1]), np.array([0,3,2]) ]
 #impindx = [ np.array([1,4,5]), np.array([0,2,3]) ]
@@ -46,7 +46,7 @@ impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]) ]
 
 #N=8 tilings
 #impindx = [ np.array([0]), np.array([1]), np.array([2]), np.array([3]), np.array([4]), np.array([5]), np.array([6]), np.array([7]) ]
-#impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]), np.array([6,7]) ]
+impindx = [ np.array([0,1]), np.array([2,3]), np.array([4,5]), np.array([6,7]) ]
 #impindx = [ np.array([0,1,2,3]), np.array([4,5,6,7]) ]
 
 #N=10 tilings
